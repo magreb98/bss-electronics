@@ -68,7 +68,7 @@ function TransfersPage() {
               </Button>
               <Button
                 className="min-h-[44px] flex-1 rounded-[10px]"
-                disabled={t.status === "receptionne"}
+                disabled={t.status === "recu"}
               >
                 Réceptionner
               </Button>
