@@ -47,7 +47,9 @@ function PromotionsPage() {
                   <Tag className="size-4 shrink-0 text-primary" aria-hidden />
                   <h2 className="truncate text-[16px] font-semibold">{p.name}</h2>
                 </div>
-                <p className="mono mt-1 text-[12px] text-muted-foreground">{p.code}</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  Du {formatDate(p.starts_at)} au {formatDate(p.ends_at)}
+                </p>
               </div>
               <Switch defaultChecked={p.active} aria-label={`Activer ${p.name}`} />
             </div>
@@ -55,7 +57,7 @@ function PromotionsPage() {
             <div className="mt-4 flex items-center justify-between">
               <Badge className="tabular border-transparent bg-primary/10 px-3 py-1 text-[13px] font-semibold text-primary">
                 -{p.value}
-                {p.type === "percent" ? " %" : " XAF"}
+                {p.type === "pourcentage" ? " %" : " XAF"}
               </Badge>
               <span className="tabular text-[12px] text-muted-foreground">
                 jusqu'au {formatDate(p.ends_at)}

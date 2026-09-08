@@ -54,12 +54,12 @@ function TransfersPage() {
               </div>
               <Badge
                 className={
-                  t.status === "receptionne"
+                  t.status === "recu"
                     ? "border-transparent bg-success/15 text-[11px] font-semibold text-foreground"
                     : "border-transparent bg-warning/20 text-[11px] font-semibold text-foreground"
                 }
               >
-                {t.status === "receptionne" ? "Réceptionné" : "En transit"}
+                {t.status === "recu" ? "Reçu" : t.status === "expedie" ? "En transit" : "Créé"}
               </Badge>
             </div>
             <div className="mt-4 flex gap-2">
@@ -68,7 +68,7 @@ function TransfersPage() {
               </Button>
               <Button
                 className="min-h-[44px] flex-1 rounded-[10px]"
-                disabled={t.status === "receptionne"}
+                disabled={t.status === "recu"}
               >
                 Réceptionner
               </Button>
