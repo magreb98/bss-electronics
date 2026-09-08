@@ -9,12 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as AuthIndexRouteImport } from './routes/_auth/index'
+import { Route as AuthCaisseRouteImport } from './routes/_auth/caisse'
+import { Route as AuthDevisRouteImport } from './routes/_auth/devis'
+import { Route as AuthFacturesRouteImport } from './routes/_auth/factures'
+import { Route as AuthFournisseursRouteImport } from './routes/_auth/fournisseurs'
+import { Route as AuthParametresRouteImport } from './routes/_auth/parametres'
+import { Route as AuthPromotionsRouteImport } from './routes/_auth/promotions'
+import { Route as AuthRapportsRouteImport } from './routes/_auth/rapports'
+import { Route as AuthStockRouteImport } from './routes/_auth/stock'
+import { Route as AuthTransfertsRouteImport } from './routes/_auth/transferts'
+import { Route as AuthVentesRouteImport } from './routes/_auth/ventes'
+import { Route as AuthCatalogueIndexRouteImport } from './routes/_auth/catalogue.index'
+import { Route as AuthCatalogueIdRouteImport } from './routes/_auth/catalogue.$id'
+import { Route as AuthClientsIndexRouteImport } from './routes/_auth/clients.index'
+import { Route as AuthClientsIdRouteImport } from './routes/_auth/clients.$id'
+import { Route as AuthElectroniqueEcheanciersRouteImport } from './routes/_auth/electronique.echeanciers'
+import { Route as AuthElectroniqueGarantiesRouteImport } from './routes/_auth/electronique.garanties'
+import { Route as AuthElectroniqueImeiRouteImport } from './routes/_auth/electronique.imei'
+import { Route as AuthElectroniqueSavRouteImport } from './routes/_auth/electronique.sav'
+import { Route as AuthPosIndexRouteImport } from './routes/_auth/pos.index'
+import { Route as AuthPosOuvrirRouteImport } from './routes/_auth/pos.ouvrir'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnexionRoute = ConnexionRouteImport.update({
@@ -22,40 +42,276 @@ const ConnexionRoute = ConnexionRouteImport.update({
   path: '/connexion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCaisseRoute = AuthCaisseRouteImport.update({
+  id: '/caisse',
+  path: '/caisse',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthDevisRoute = AuthDevisRouteImport.update({
+  id: '/devis',
+  path: '/devis',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthFacturesRoute = AuthFacturesRouteImport.update({
+  id: '/factures',
+  path: '/factures',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthFournisseursRoute = AuthFournisseursRouteImport.update({
+  id: '/fournisseurs',
+  path: '/fournisseurs',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthParametresRoute = AuthParametresRouteImport.update({
+  id: '/parametres',
+  path: '/parametres',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthPromotionsRoute = AuthPromotionsRouteImport.update({
+  id: '/promotions',
+  path: '/promotions',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthRapportsRoute = AuthRapportsRouteImport.update({
+  id: '/rapports',
+  path: '/rapports',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthStockRoute = AuthStockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthTransfertsRoute = AuthTransfertsRouteImport.update({
+  id: '/transferts',
+  path: '/transferts',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthVentesRoute = AuthVentesRouteImport.update({
+  id: '/ventes',
+  path: '/ventes',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCatalogueIndexRoute = AuthCatalogueIndexRouteImport.update({
+  id: '/catalogue/',
+  path: '/catalogue/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthCatalogueIdRoute = AuthCatalogueIdRouteImport.update({
+  id: '/catalogue/$id',
+  path: '/catalogue/$id',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthClientsIndexRoute = AuthClientsIndexRouteImport.update({
+  id: '/clients/',
+  path: '/clients/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthClientsIdRoute = AuthClientsIdRouteImport.update({
+  id: '/clients/$id',
+  path: '/clients/$id',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthElectroniqueEcheanciersRoute =
+  AuthElectroniqueEcheanciersRouteImport.update({
+    id: '/electronique/echeanciers',
+    path: '/electronique/echeanciers',
+    getParentRoute: () => AuthRoute,
+  } as any)
+const AuthElectroniqueGarantiesRoute =
+  AuthElectroniqueGarantiesRouteImport.update({
+    id: '/electronique/garanties',
+    path: '/electronique/garanties',
+    getParentRoute: () => AuthRoute,
+  } as any)
+const AuthElectroniqueImeiRoute = AuthElectroniqueImeiRouteImport.update({
+  id: '/electronique/imei',
+  path: '/electronique/imei',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthElectroniqueSavRoute = AuthElectroniqueSavRouteImport.update({
+  id: '/electronique/sav',
+  path: '/electronique/sav',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthPosIndexRoute = AuthPosIndexRouteImport.update({
+  id: '/pos/',
+  path: '/pos/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthPosOuvrirRoute = AuthPosOuvrirRouteImport.update({
+  id: '/pos/ouvrir',
+  path: '/pos/ouvrir',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthIndexRoute
   '/connexion': typeof ConnexionRoute
+  '/caisse': typeof AuthCaisseRoute
+  '/devis': typeof AuthDevisRoute
+  '/factures': typeof AuthFacturesRoute
+  '/fournisseurs': typeof AuthFournisseursRoute
+  '/parametres': typeof AuthParametresRoute
+  '/promotions': typeof AuthPromotionsRoute
+  '/rapports': typeof AuthRapportsRoute
+  '/stock': typeof AuthStockRoute
+  '/transferts': typeof AuthTransfertsRoute
+  '/ventes': typeof AuthVentesRoute
+  '/catalogue/$id': typeof AuthCatalogueIdRoute
+  '/clients/$id': typeof AuthClientsIdRoute
+  '/electronique/echeanciers': typeof AuthElectroniqueEcheanciersRoute
+  '/electronique/garanties': typeof AuthElectroniqueGarantiesRoute
+  '/electronique/imei': typeof AuthElectroniqueImeiRoute
+  '/electronique/sav': typeof AuthElectroniqueSavRoute
+  '/pos/ouvrir': typeof AuthPosOuvrirRoute
+  '/catalogue/': typeof AuthCatalogueIndexRoute
+  '/clients/': typeof AuthClientsIndexRoute
+  '/pos/': typeof AuthPosIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/connexion': typeof ConnexionRoute
+  '/caisse': typeof AuthCaisseRoute
+  '/devis': typeof AuthDevisRoute
+  '/factures': typeof AuthFacturesRoute
+  '/fournisseurs': typeof AuthFournisseursRoute
+  '/parametres': typeof AuthParametresRoute
+  '/promotions': typeof AuthPromotionsRoute
+  '/rapports': typeof AuthRapportsRoute
+  '/stock': typeof AuthStockRoute
+  '/transferts': typeof AuthTransfertsRoute
+  '/ventes': typeof AuthVentesRoute
+  '/': typeof AuthIndexRoute
+  '/catalogue/$id': typeof AuthCatalogueIdRoute
+  '/clients/$id': typeof AuthClientsIdRoute
+  '/electronique/echeanciers': typeof AuthElectroniqueEcheanciersRoute
+  '/electronique/garanties': typeof AuthElectroniqueGarantiesRoute
+  '/electronique/imei': typeof AuthElectroniqueImeiRoute
+  '/electronique/sav': typeof AuthElectroniqueSavRoute
+  '/pos/ouvrir': typeof AuthPosOuvrirRoute
+  '/catalogue': typeof AuthCatalogueIndexRoute
+  '/clients': typeof AuthClientsIndexRoute
+  '/pos': typeof AuthPosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
   '/connexion': typeof ConnexionRoute
+  '/_auth/caisse': typeof AuthCaisseRoute
+  '/_auth/devis': typeof AuthDevisRoute
+  '/_auth/factures': typeof AuthFacturesRoute
+  '/_auth/fournisseurs': typeof AuthFournisseursRoute
+  '/_auth/parametres': typeof AuthParametresRoute
+  '/_auth/promotions': typeof AuthPromotionsRoute
+  '/_auth/rapports': typeof AuthRapportsRoute
+  '/_auth/stock': typeof AuthStockRoute
+  '/_auth/transferts': typeof AuthTransfertsRoute
+  '/_auth/ventes': typeof AuthVentesRoute
+  '/_auth/': typeof AuthIndexRoute
+  '/_auth/catalogue/$id': typeof AuthCatalogueIdRoute
+  '/_auth/clients/$id': typeof AuthClientsIdRoute
+  '/_auth/electronique/echeanciers': typeof AuthElectroniqueEcheanciersRoute
+  '/_auth/electronique/garanties': typeof AuthElectroniqueGarantiesRoute
+  '/_auth/electronique/imei': typeof AuthElectroniqueImeiRoute
+  '/_auth/electronique/sav': typeof AuthElectroniqueSavRoute
+  '/_auth/pos/ouvrir': typeof AuthPosOuvrirRoute
+  '/_auth/catalogue/': typeof AuthCatalogueIndexRoute
+  '/_auth/clients/': typeof AuthClientsIndexRoute
+  '/_auth/pos/': typeof AuthPosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connexion'
+  fullPaths:
+    | '/'
+    | '/connexion'
+    | '/caisse'
+    | '/devis'
+    | '/factures'
+    | '/fournisseurs'
+    | '/parametres'
+    | '/promotions'
+    | '/rapports'
+    | '/stock'
+    | '/transferts'
+    | '/ventes'
+    | '/catalogue/$id'
+    | '/clients/$id'
+    | '/electronique/echeanciers'
+    | '/electronique/garanties'
+    | '/electronique/imei'
+    | '/electronique/sav'
+    | '/pos/ouvrir'
+    | '/catalogue/'
+    | '/clients/'
+    | '/pos/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connexion'
-  id: '__root__' | '/' | '/connexion'
+  to:
+    | '/connexion'
+    | '/caisse'
+    | '/devis'
+    | '/factures'
+    | '/fournisseurs'
+    | '/parametres'
+    | '/promotions'
+    | '/rapports'
+    | '/stock'
+    | '/transferts'
+    | '/ventes'
+    | '/'
+    | '/catalogue/$id'
+    | '/clients/$id'
+    | '/electronique/echeanciers'
+    | '/electronique/garanties'
+    | '/electronique/imei'
+    | '/electronique/sav'
+    | '/pos/ouvrir'
+    | '/catalogue'
+    | '/clients'
+    | '/pos'
+  id:
+    | '__root__'
+    | '/_auth'
+    | '/connexion'
+    | '/_auth/caisse'
+    | '/_auth/devis'
+    | '/_auth/factures'
+    | '/_auth/fournisseurs'
+    | '/_auth/parametres'
+    | '/_auth/promotions'
+    | '/_auth/rapports'
+    | '/_auth/stock'
+    | '/_auth/transferts'
+    | '/_auth/ventes'
+    | '/_auth/'
+    | '/_auth/catalogue/$id'
+    | '/_auth/clients/$id'
+    | '/_auth/electronique/echeanciers'
+    | '/_auth/electronique/garanties'
+    | '/_auth/electronique/imei'
+    | '/_auth/electronique/sav'
+    | '/_auth/pos/ouvrir'
+    | '/_auth/catalogue/'
+    | '/_auth/clients/'
+    | '/_auth/pos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
   ConnexionRoute: typeof ConnexionRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_auth': {
+      id: '/_auth'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/connexion': {
@@ -65,11 +321,208 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnexionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_auth/': {
+      id: '/_auth/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/caisse': {
+      id: '/_auth/caisse'
+      path: '/caisse'
+      fullPath: '/caisse'
+      preLoaderRoute: typeof AuthCaisseRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/devis': {
+      id: '/_auth/devis'
+      path: '/devis'
+      fullPath: '/devis'
+      preLoaderRoute: typeof AuthDevisRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/factures': {
+      id: '/_auth/factures'
+      path: '/factures'
+      fullPath: '/factures'
+      preLoaderRoute: typeof AuthFacturesRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/fournisseurs': {
+      id: '/_auth/fournisseurs'
+      path: '/fournisseurs'
+      fullPath: '/fournisseurs'
+      preLoaderRoute: typeof AuthFournisseursRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/parametres': {
+      id: '/_auth/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof AuthParametresRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/promotions': {
+      id: '/_auth/promotions'
+      path: '/promotions'
+      fullPath: '/promotions'
+      preLoaderRoute: typeof AuthPromotionsRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/rapports': {
+      id: '/_auth/rapports'
+      path: '/rapports'
+      fullPath: '/rapports'
+      preLoaderRoute: typeof AuthRapportsRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/stock': {
+      id: '/_auth/stock'
+      path: '/stock'
+      fullPath: '/stock'
+      preLoaderRoute: typeof AuthStockRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/transferts': {
+      id: '/_auth/transferts'
+      path: '/transferts'
+      fullPath: '/transferts'
+      preLoaderRoute: typeof AuthTransfertsRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/ventes': {
+      id: '/_auth/ventes'
+      path: '/ventes'
+      fullPath: '/ventes'
+      preLoaderRoute: typeof AuthVentesRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/catalogue/': {
+      id: '/_auth/catalogue/'
+      path: '/catalogue'
+      fullPath: '/catalogue/'
+      preLoaderRoute: typeof AuthCatalogueIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/catalogue/$id': {
+      id: '/_auth/catalogue/$id'
+      path: '/catalogue/$id'
+      fullPath: '/catalogue/$id'
+      preLoaderRoute: typeof AuthCatalogueIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/clients/': {
+      id: '/_auth/clients/'
+      path: '/clients'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AuthClientsIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/clients/$id': {
+      id: '/_auth/clients/$id'
+      path: '/clients/$id'
+      fullPath: '/clients/$id'
+      preLoaderRoute: typeof AuthClientsIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/electronique/echeanciers': {
+      id: '/_auth/electronique/echeanciers'
+      path: '/electronique/echeanciers'
+      fullPath: '/electronique/echeanciers'
+      preLoaderRoute: typeof AuthElectroniqueEcheanciersRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/electronique/garanties': {
+      id: '/_auth/electronique/garanties'
+      path: '/electronique/garanties'
+      fullPath: '/electronique/garanties'
+      preLoaderRoute: typeof AuthElectroniqueGarantiesRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/electronique/imei': {
+      id: '/_auth/electronique/imei'
+      path: '/electronique/imei'
+      fullPath: '/electronique/imei'
+      preLoaderRoute: typeof AuthElectroniqueImeiRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/electronique/sav': {
+      id: '/_auth/electronique/sav'
+      path: '/electronique/sav'
+      fullPath: '/electronique/sav'
+      preLoaderRoute: typeof AuthElectroniqueSavRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/pos/': {
+      id: '/_auth/pos/'
+      path: '/pos'
+      fullPath: '/pos/'
+      preLoaderRoute: typeof AuthPosIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/pos/ouvrir': {
+      id: '/_auth/pos/ouvrir'
+      path: '/pos/ouvrir'
+      fullPath: '/pos/ouvrir'
+      preLoaderRoute: typeof AuthPosOuvrirRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthCaisseRoute: typeof AuthCaisseRoute
+  AuthDevisRoute: typeof AuthDevisRoute
+  AuthFacturesRoute: typeof AuthFacturesRoute
+  AuthFournisseursRoute: typeof AuthFournisseursRoute
+  AuthParametresRoute: typeof AuthParametresRoute
+  AuthPromotionsRoute: typeof AuthPromotionsRoute
+  AuthRapportsRoute: typeof AuthRapportsRoute
+  AuthStockRoute: typeof AuthStockRoute
+  AuthTransfertsRoute: typeof AuthTransfertsRoute
+  AuthVentesRoute: typeof AuthVentesRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+  AuthCatalogueIdRoute: typeof AuthCatalogueIdRoute
+  AuthClientsIdRoute: typeof AuthClientsIdRoute
+  AuthElectroniqueEcheanciersRoute: typeof AuthElectroniqueEcheanciersRoute
+  AuthElectroniqueGarantiesRoute: typeof AuthElectroniqueGarantiesRoute
+  AuthElectroniqueImeiRoute: typeof AuthElectroniqueImeiRoute
+  AuthElectroniqueSavRoute: typeof AuthElectroniqueSavRoute
+  AuthPosOuvrirRoute: typeof AuthPosOuvrirRoute
+  AuthCatalogueIndexRoute: typeof AuthCatalogueIndexRoute
+  AuthClientsIndexRoute: typeof AuthClientsIndexRoute
+  AuthPosIndexRoute: typeof AuthPosIndexRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthCaisseRoute: AuthCaisseRoute,
+  AuthDevisRoute: AuthDevisRoute,
+  AuthFacturesRoute: AuthFacturesRoute,
+  AuthFournisseursRoute: AuthFournisseursRoute,
+  AuthParametresRoute: AuthParametresRoute,
+  AuthPromotionsRoute: AuthPromotionsRoute,
+  AuthRapportsRoute: AuthRapportsRoute,
+  AuthStockRoute: AuthStockRoute,
+  AuthTransfertsRoute: AuthTransfertsRoute,
+  AuthVentesRoute: AuthVentesRoute,
+  AuthIndexRoute: AuthIndexRoute,
+  AuthCatalogueIdRoute: AuthCatalogueIdRoute,
+  AuthClientsIdRoute: AuthClientsIdRoute,
+  AuthElectroniqueEcheanciersRoute: AuthElectroniqueEcheanciersRoute,
+  AuthElectroniqueGarantiesRoute: AuthElectroniqueGarantiesRoute,
+  AuthElectroniqueImeiRoute: AuthElectroniqueImeiRoute,
+  AuthElectroniqueSavRoute: AuthElectroniqueSavRoute,
+  AuthPosOuvrirRoute: AuthPosOuvrirRoute,
+  AuthCatalogueIndexRoute: AuthCatalogueIndexRoute,
+  AuthClientsIndexRoute: AuthClientsIndexRoute,
+  AuthPosIndexRoute: AuthPosIndexRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthRoute: AuthRouteWithChildren,
   ConnexionRoute: ConnexionRoute,
 }
 export const routeTree = rootRouteImport
