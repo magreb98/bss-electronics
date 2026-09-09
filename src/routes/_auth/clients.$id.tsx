@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_auth/clients/$id")({
 
 function CustomerDetailPage() {
   const { id } = Route.useParams();
-  const customer = demoCustomers.find((c) => String(c.id) === id) ?? demoCustomers[0];
+  const customer = demoCustomers.find((c) => String(c.id) === id) ?? demoCustomers[0]!;
   const sales = demoSales.filter((s) => s.customer === customer.name);
   const average = sales.length
     ? Math.trunc(sales.reduce((sum, s) => sum + s.total, 0) / sales.length)

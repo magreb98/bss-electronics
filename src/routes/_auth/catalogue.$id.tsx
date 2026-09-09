@@ -48,7 +48,7 @@ const schema = z.object({
 
 function ProductDetailPage() {
   const { id } = Route.useParams();
-  const product = demoProducts.find((p) => String(p.id) === id) ?? demoProducts[0];
+  const product = demoProducts.find((p) => String(p.id) === id) ?? demoProducts[0]!;
   const units = demoSerialUnits.filter((u) => u.product_id === product.id);
 
   const form = useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>({
