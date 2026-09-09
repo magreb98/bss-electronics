@@ -22,6 +22,10 @@ import { Route as AuthRapportsRouteImport } from './routes/_auth/rapports'
 import { Route as AuthStockRouteImport } from './routes/_auth/stock'
 import { Route as AuthTransfertsRouteImport } from './routes/_auth/transferts'
 import { Route as AuthVentesRouteImport } from './routes/_auth/ventes'
+import { Route as AuthAdminIndexRouteImport } from './routes/_auth/admin.index'
+import { Route as AuthAdminFacturationRouteImport } from './routes/_auth/admin.facturation'
+import { Route as AuthAdminRolesRouteImport } from './routes/_auth/admin.roles'
+import { Route as AuthAdminUtilisateursRouteImport } from './routes/_auth/admin.utilisateurs'
 import { Route as AuthCatalogueIndexRouteImport } from './routes/_auth/catalogue.index'
 import { Route as AuthCatalogueIdRouteImport } from './routes/_auth/catalogue.$id'
 import { Route as AuthClientsIndexRouteImport } from './routes/_auth/clients.index'
@@ -97,6 +101,26 @@ const AuthVentesRoute = AuthVentesRouteImport.update({
   path: '/ventes',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthAdminIndexRoute = AuthAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAdminFacturationRoute = AuthAdminFacturationRouteImport.update({
+  id: '/admin/facturation',
+  path: '/admin/facturation',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAdminRolesRoute = AuthAdminRolesRouteImport.update({
+  id: '/admin/roles',
+  path: '/admin/roles',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAdminUtilisateursRoute = AuthAdminUtilisateursRouteImport.update({
+  id: '/admin/utilisateurs',
+  path: '/admin/utilisateurs',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthCatalogueIndexRoute = AuthCatalogueIndexRouteImport.update({
   id: '/catalogue/',
   path: '/catalogue/',
@@ -163,6 +187,9 @@ export interface FileRoutesByFullPath {
   '/stock': typeof AuthStockRoute
   '/transferts': typeof AuthTransfertsRoute
   '/ventes': typeof AuthVentesRoute
+  '/admin/facturation': typeof AuthAdminFacturationRoute
+  '/admin/roles': typeof AuthAdminRolesRoute
+  '/admin/utilisateurs': typeof AuthAdminUtilisateursRoute
   '/catalogue/$id': typeof AuthCatalogueIdRoute
   '/clients/$id': typeof AuthClientsIdRoute
   '/electronique/echeanciers': typeof AuthElectroniqueEcheanciersRoute
@@ -170,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/electronique/imei': typeof AuthElectroniqueImeiRoute
   '/electronique/sav': typeof AuthElectroniqueSavRoute
   '/pos/ouvrir': typeof AuthPosOuvrirRoute
+  '/admin/': typeof AuthAdminIndexRoute
   '/catalogue/': typeof AuthCatalogueIndexRoute
   '/clients/': typeof AuthClientsIndexRoute
   '/pos/': typeof AuthPosIndexRoute
@@ -187,6 +215,9 @@ export interface FileRoutesByTo {
   '/transferts': typeof AuthTransfertsRoute
   '/ventes': typeof AuthVentesRoute
   '/': typeof AuthIndexRoute
+  '/admin/facturation': typeof AuthAdminFacturationRoute
+  '/admin/roles': typeof AuthAdminRolesRoute
+  '/admin/utilisateurs': typeof AuthAdminUtilisateursRoute
   '/catalogue/$id': typeof AuthCatalogueIdRoute
   '/clients/$id': typeof AuthClientsIdRoute
   '/electronique/echeanciers': typeof AuthElectroniqueEcheanciersRoute
@@ -194,6 +225,7 @@ export interface FileRoutesByTo {
   '/electronique/imei': typeof AuthElectroniqueImeiRoute
   '/electronique/sav': typeof AuthElectroniqueSavRoute
   '/pos/ouvrir': typeof AuthPosOuvrirRoute
+  '/admin': typeof AuthAdminIndexRoute
   '/catalogue': typeof AuthCatalogueIndexRoute
   '/clients': typeof AuthClientsIndexRoute
   '/pos': typeof AuthPosIndexRoute
@@ -213,6 +245,9 @@ export interface FileRoutesById {
   '/_auth/transferts': typeof AuthTransfertsRoute
   '/_auth/ventes': typeof AuthVentesRoute
   '/_auth/': typeof AuthIndexRoute
+  '/_auth/admin/facturation': typeof AuthAdminFacturationRoute
+  '/_auth/admin/roles': typeof AuthAdminRolesRoute
+  '/_auth/admin/utilisateurs': typeof AuthAdminUtilisateursRoute
   '/_auth/catalogue/$id': typeof AuthCatalogueIdRoute
   '/_auth/clients/$id': typeof AuthClientsIdRoute
   '/_auth/electronique/echeanciers': typeof AuthElectroniqueEcheanciersRoute
@@ -220,6 +255,7 @@ export interface FileRoutesById {
   '/_auth/electronique/imei': typeof AuthElectroniqueImeiRoute
   '/_auth/electronique/sav': typeof AuthElectroniqueSavRoute
   '/_auth/pos/ouvrir': typeof AuthPosOuvrirRoute
+  '/_auth/admin/': typeof AuthAdminIndexRoute
   '/_auth/catalogue/': typeof AuthCatalogueIndexRoute
   '/_auth/clients/': typeof AuthClientsIndexRoute
   '/_auth/pos/': typeof AuthPosIndexRoute
@@ -239,6 +275,9 @@ export interface FileRouteTypes {
     | '/stock'
     | '/transferts'
     | '/ventes'
+    | '/admin/facturation'
+    | '/admin/roles'
+    | '/admin/utilisateurs'
     | '/catalogue/$id'
     | '/clients/$id'
     | '/electronique/echeanciers'
@@ -246,6 +285,7 @@ export interface FileRouteTypes {
     | '/electronique/imei'
     | '/electronique/sav'
     | '/pos/ouvrir'
+    | '/admin/'
     | '/catalogue/'
     | '/clients/'
     | '/pos/'
@@ -263,6 +303,9 @@ export interface FileRouteTypes {
     | '/transferts'
     | '/ventes'
     | '/'
+    | '/admin/facturation'
+    | '/admin/roles'
+    | '/admin/utilisateurs'
     | '/catalogue/$id'
     | '/clients/$id'
     | '/electronique/echeanciers'
@@ -270,6 +313,7 @@ export interface FileRouteTypes {
     | '/electronique/imei'
     | '/electronique/sav'
     | '/pos/ouvrir'
+    | '/admin'
     | '/catalogue'
     | '/clients'
     | '/pos'
@@ -288,6 +332,9 @@ export interface FileRouteTypes {
     | '/_auth/transferts'
     | '/_auth/ventes'
     | '/_auth/'
+    | '/_auth/admin/facturation'
+    | '/_auth/admin/roles'
+    | '/_auth/admin/utilisateurs'
     | '/_auth/catalogue/$id'
     | '/_auth/clients/$id'
     | '/_auth/electronique/echeanciers'
@@ -295,6 +342,7 @@ export interface FileRouteTypes {
     | '/_auth/electronique/imei'
     | '/_auth/electronique/sav'
     | '/_auth/pos/ouvrir'
+    | '/_auth/admin/'
     | '/_auth/catalogue/'
     | '/_auth/clients/'
     | '/_auth/pos/'
@@ -398,6 +446,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthVentesRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/admin/': {
+      id: '/_auth/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthAdminIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/facturation': {
+      id: '/_auth/admin/facturation'
+      path: '/admin/facturation'
+      fullPath: '/admin/facturation'
+      preLoaderRoute: typeof AuthAdminFacturationRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/roles': {
+      id: '/_auth/admin/roles'
+      path: '/admin/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AuthAdminRolesRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/utilisateurs': {
+      id: '/_auth/admin/utilisateurs'
+      path: '/admin/utilisateurs'
+      fullPath: '/admin/utilisateurs'
+      preLoaderRoute: typeof AuthAdminUtilisateursRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/catalogue/': {
       id: '/_auth/catalogue/'
       path: '/catalogue'
@@ -483,6 +559,9 @@ interface AuthRouteChildren {
   AuthTransfertsRoute: typeof AuthTransfertsRoute
   AuthVentesRoute: typeof AuthVentesRoute
   AuthIndexRoute: typeof AuthIndexRoute
+  AuthAdminFacturationRoute: typeof AuthAdminFacturationRoute
+  AuthAdminRolesRoute: typeof AuthAdminRolesRoute
+  AuthAdminUtilisateursRoute: typeof AuthAdminUtilisateursRoute
   AuthCatalogueIdRoute: typeof AuthCatalogueIdRoute
   AuthClientsIdRoute: typeof AuthClientsIdRoute
   AuthElectroniqueEcheanciersRoute: typeof AuthElectroniqueEcheanciersRoute
@@ -490,6 +569,7 @@ interface AuthRouteChildren {
   AuthElectroniqueImeiRoute: typeof AuthElectroniqueImeiRoute
   AuthElectroniqueSavRoute: typeof AuthElectroniqueSavRoute
   AuthPosOuvrirRoute: typeof AuthPosOuvrirRoute
+  AuthAdminIndexRoute: typeof AuthAdminIndexRoute
   AuthCatalogueIndexRoute: typeof AuthCatalogueIndexRoute
   AuthClientsIndexRoute: typeof AuthClientsIndexRoute
   AuthPosIndexRoute: typeof AuthPosIndexRoute
@@ -507,6 +587,9 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthTransfertsRoute: AuthTransfertsRoute,
   AuthVentesRoute: AuthVentesRoute,
   AuthIndexRoute: AuthIndexRoute,
+  AuthAdminFacturationRoute: AuthAdminFacturationRoute,
+  AuthAdminRolesRoute: AuthAdminRolesRoute,
+  AuthAdminUtilisateursRoute: AuthAdminUtilisateursRoute,
   AuthCatalogueIdRoute: AuthCatalogueIdRoute,
   AuthClientsIdRoute: AuthClientsIdRoute,
   AuthElectroniqueEcheanciersRoute: AuthElectroniqueEcheanciersRoute,
@@ -514,6 +597,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthElectroniqueImeiRoute: AuthElectroniqueImeiRoute,
   AuthElectroniqueSavRoute: AuthElectroniqueSavRoute,
   AuthPosOuvrirRoute: AuthPosOuvrirRoute,
+  AuthAdminIndexRoute: AuthAdminIndexRoute,
   AuthCatalogueIndexRoute: AuthCatalogueIndexRoute,
   AuthClientsIndexRoute: AuthClientsIndexRoute,
   AuthPosIndexRoute: AuthPosIndexRoute,
