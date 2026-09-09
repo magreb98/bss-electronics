@@ -5,7 +5,7 @@ export const TOKEN_KEY = "bss_pos_token";
 
 export class ApiError extends Error {
   status: number;
-  errors?: Record<string, string[]>;
+  errors?: Record<string, string[]> | undefined;
   constructor(status: number, message: string, errors?: Record<string, string[]>) {
     super(message);
     this.status = status;
@@ -27,7 +27,7 @@ export function setToken(token: string | null) {
 type Options = {
   method?: string;
   body?: unknown;
-  params?: Record<string, string | number | undefined>;
+  params?: Record<string, string | number | undefined> | undefined;
 };
 
 /**
@@ -50,7 +50,7 @@ export async function request<T>(path: string, options: Options = {}): Promise<T
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
   });
 
   if (res.status === 401) {
@@ -84,7 +84,7 @@ export async function fetchOrDemo<T>(
   params?: Record<string, string | number | undefined>,
 ): Promise<T> {
   try {
-    const payload = await request<{ data: T }>(path, { params });
+    const payload = await request<{ data: T }>(path, params ? { params } : {});
     return payload.data;
   } catch {
     return fallback;

@@ -52,7 +52,7 @@ export interface CartLine {
   product: Product;
   qty: number;
   discount: number;
-  serial?: SerialUnit;
+  serial?: SerialUnit | undefined;
 }
 
 export interface Sale {

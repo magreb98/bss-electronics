@@ -54,7 +54,7 @@ function OpenSessionPage() {
 
   const form = useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { cash_register: registers[0], opening_float: 0 },
+    defaultValues: { cash_register: registers[0] ?? "", opening_float: 0 },
   });
 
   const onSubmit = async (values: z.output<typeof schema>) => {

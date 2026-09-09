@@ -60,7 +60,7 @@ const groups: { title: string; items: NavItem[] }[] = [
   {
     title: "Électronique",
     items: [
-      { to: "/electronique/imeis", label: "IMEI / séries", icon: Smartphone },
+      { to: "/electronique/imei", label: "IMEI / séries", icon: Smartphone },
       { to: "/electronique/garanties", label: "Garanties", icon: ShieldCheck },
       { to: "/electronique/sav", label: "SAV", icon: Wrench },
       { to: "/electronique/echeanciers", label: "Échéanciers", icon: CreditCard },
