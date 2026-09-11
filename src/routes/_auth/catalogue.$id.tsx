@@ -1,9 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { request } from "@/lib/api";
+import { adaptProduct } from "@/lib/adapters";
+import type { BackendProduct, BackendSerialUnit } from "@/lib/types";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -20,8 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { demoProducts, demoSerialUnits } from "@/lib/demo";
-import { formatDate, formatXAF } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_auth/catalogue/$id")({
   head: () => ({
@@ -29,59 +33,113 @@ export const Route = createFileRoute("/_auth/catalogue/$id")({
       { title: "Fiche produit — BSS POS" },
       {
         name: "description",
-        content: "Détail produit : prix, stock, variantes, lots et fiche technique électronique.",
+        content: "Détail produit : prix, variantes, lots et fiche technique électronique.",
       },
       { property: "og:title", content: "Fiche produit — BSS POS" },
-      { property: "og:description", content: "Modifiez prix, stock et caractéristiques techniques." },
+      { property: "og:description", content: "Modifiez prix et caractéristiques du produit." },
     ],
   }),
   component: ProductDetailPage,
 });
 
+// Seuls les champs acceptés par PUT /commerce/products/{id}
 const schema = z.object({
-  name: z.string().min(2, "Nom requis"),
-  sku: z.string().min(2, "SKU requis"),
-  price: z.coerce.number().int("Montant entier requis").min(0),
-  cost_price: z.coerce.number().int("Montant entier requis").min(0),
-  min_stock: z.coerce.number().int().min(0),
+  label:         z.string().min(2, "Nom requis"),
+  reference:     z.string().min(2, "SKU requis"),
+  selling_price: z.coerce.number().int("Montant entier requis").min(0),
+  vat_rate:      z.coerce.number().min(0).max(100),
 });
 
 function ProductDetailPage() {
   const { id } = Route.useParams();
-  const product = demoProducts.find((p) => String(p.id) === id) ?? demoProducts[0]!;
-  const units = demoSerialUnits.filter((u) => u.product_id === product.id);
+  const qc = useQueryClient();
 
-  const form = useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>({
+  const { data: product } = useQuery({
+    queryKey: ["product", id],
+    queryFn: () =>
+      request<BackendProduct>(`/commerce/products/${id}`)
+        .then((r) => adaptProduct(r)),
+    staleTime: 60_000,
+  });
+
+  const { data: units = [] } = useQuery({
+    queryKey: ["serial-units", id],
+    enabled: Boolean(product?.id),
+    queryFn: () =>
+      request<{ data: BackendSerialUnit[] }>(`/electronics/serial-units`, { params: { product_id: id } })
+        .then((r) => r.data)
+        .catch(() => [] as BackendSerialUnit[]),
+    staleTime: 60_000,
+  });
+
+  const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: product.name,
-      sku: product.sku,
-      price: product.price,
-      cost_price: product.cost_price,
-      min_stock: product.min_stock,
+      label:         product?.name ?? "",
+      reference:     product?.sku ?? "",
+      selling_price: product?.price ?? 0,
+      vat_rate:      product?.vat_rate ?? 19.25,
     },
   });
 
-  const onSubmit = async () => {
-    toast.success("Produit mis à jour");
+  useEffect(() => {
+    if (!product) return;
+    form.reset({
+      label:         product.name,
+      reference:     product.sku,
+      selling_price: product.price,
+      vat_rate:      product.vat_rate ?? 19.25,
+    });
+  }, [product?.id, form]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onSubmit = async (values: z.infer<typeof schema>) => {
+    try {
+      await request(`/commerce/products/${id}`, {
+        method: "PUT",
+        body: {
+          label:         values.label,
+          reference:     values.reference,
+          selling_price: values.selling_price,
+          vat_rate:      values.vat_rate,
+        },
+      });
+      toast.success("Produit mis à jour");
+      void qc.invalidateQueries({ queryKey: ["catalogue"] });
+      void qc.invalidateQueries({ queryKey: ["product", id] });
+    } catch (err: unknown) {
+      const e = err as { errors?: Record<string, string[]>; message?: string };
+      if (e?.errors) {
+        Object.entries(e.errors).forEach(([f, msgs]) =>
+          form.setError(f as keyof z.infer<typeof schema>, { message: msgs[0] ?? "Invalide" }),
+        );
+      } else {
+        toast.error(e?.message ?? "Erreur lors de la mise à jour");
+      }
+    }
   };
+
+  if (!product) {
+    return (
+      <PageBody>
+        <PageHeader title="Chargement…" description="Récupération du produit en cours." />
+      </PageBody>
+    );
+  }
 
   return (
     <PageBody>
       <PageHeader
         title={product.name}
-        description={`${product.family} · marge ${formatXAF(product.price - product.cost_price)}`}
+        description={`${product.family} · ${product.sku}`}
         action={
           <Badge
             className={
-              product.stock === 0
-                ? "border-transparent bg-destructive/15 px-3 py-1 text-[12px] font-semibold text-destructive"
-                : product.stock <= product.min_stock
-                  ? "border-transparent bg-warning/20 px-3 py-1 text-[12px] font-semibold text-foreground"
-                  : "border-transparent bg-success/15 px-3 py-1 text-[12px] font-semibold text-foreground"
+              product.active === false
+                ? "border-transparent bg-muted px-3 py-1 text-[12px] font-semibold text-muted-foreground"
+                : "border-transparent bg-success/15 px-3 py-1 text-[12px] font-semibold text-foreground"
             }
           >
-            {product.stock} en stock
+            {product.active === false ? "Inactif" : "Actif"}
           </Badge>
         }
       />
@@ -90,9 +148,17 @@ function ProductDetailPage() {
         <Card className="gap-0 rounded-[16px] border-border p-5 shadow-none">
           <h2 className="text-[17px] font-semibold">Images</h2>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="grid aspect-square place-items-center rounded-[12px] bg-muted text-muted-foreground">
-              <ImagePlus className="size-6" aria-hidden />
-            </div>
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="aspect-square rounded-[12px] object-cover"
+              />
+            ) : (
+              <div className="grid aspect-square place-items-center rounded-[12px] bg-muted text-muted-foreground">
+                <ImagePlus className="size-6" aria-hidden />
+              </div>
+            )}
             <button
               type="button"
               className="grid aspect-square cursor-pointer place-items-center rounded-[12px] border border-dashed border-input text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-accent"
@@ -112,10 +178,7 @@ function ProductDetailPage() {
                 Variantes
               </TabsTrigger>
               <TabsTrigger value="lots" className="min-h-[36px]">
-                Lots
-              </TabsTrigger>
-              <TabsTrigger value="fiche" className="min-h-[36px]">
-                Fiche électronique
+                Lots / Séries
               </TabsTrigger>
             </TabsList>
 
@@ -124,7 +187,7 @@ function ProductDetailPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
-                    name="name"
+                    name="label"
                     render={({ field }) => (
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Nom du produit</FormLabel>
@@ -137,10 +200,10 @@ function ProductDetailPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="sku"
+                    name="reference"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>SKU</FormLabel>
+                        <FormLabel>SKU / Référence</FormLabel>
                         <FormControl>
                           <Input {...field} className="mono min-h-[44px] rounded-[10px]" />
                         </FormControl>
@@ -150,16 +213,17 @@ function ProductDetailPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="min_stock"
+                    name="vat_rate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Seuil d'alerte</FormLabel>
+                        <FormLabel>TVA (%)</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
                             type="number"
-                            step="1"
+                            step="0.01"
                             min="0"
+                            max="100"
                             className="tabular min-h-[44px] rounded-[10px]"
                           />
                         </FormControl>
@@ -169,29 +233,10 @@ function ProductDetailPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="cost_price"
+                    name="selling_price"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prix d'achat XAF</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            step="1"
-                            min="0"
-                            className="tabular min-h-[44px] rounded-[10px]"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Prix de vente XAF</FormLabel>
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Prix de vente (XAF)</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -232,7 +277,7 @@ function ProductDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>IMEI / série</TableHead>
+                      <TableHead>IMEI / Série</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-right">Entrée</TableHead>
                     </TableRow>
@@ -240,7 +285,7 @@ function ProductDetailPage() {
                   <TableBody>
                     {units.map((unit) => (
                       <TableRow key={unit.id}>
-                        <TableCell className="mono text-[12px]">{unit.imei}</TableCell>
+                        <TableCell className="mono text-[12px]">{unit.serial_number}</TableCell>
                         <TableCell className="capitalize">{unit.status}</TableCell>
                         <TableCell className="tabular text-right">
                           {formatDate(unit.entered_at)}
@@ -250,33 +295,13 @@ function ProductDetailPage() {
                     {units.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={3} className="text-muted-foreground">
-                          Produit non sérialisé.
+                          Produit non sérialisé ou aucune unité enregistrée.
                         </TableCell>
                       </TableRow>
                     ) : null}
                   </TableBody>
                 </Table>
               </div>
-            </TabsContent>
-
-            <TabsContent value="fiche" className="pt-4">
-              <dl className="grid gap-3 sm:grid-cols-2">
-                {[
-                  ["Processeur", "A17 Pro / Snapdragon 8 Gen 3"],
-                  ["Mémoire vive", "8 Go"],
-                  ["Stockage", "256 Go"],
-                  ["Écran", "6,1\" OLED 120 Hz"],
-                  ["Batterie", "3 900 mAh"],
-                  ["Connectivité", "5G · Wi-Fi 6E · NFC"],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-[12px] border border-border p-3">
-                    <dt className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                      {label}
-                    </dt>
-                    <dd className="mt-1 text-[15px]">{value}</dd>
-                  </div>
-                ))}
-              </dl>
             </TabsContent>
           </Tabs>
         </Card>

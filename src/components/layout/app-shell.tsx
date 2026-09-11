@@ -5,6 +5,8 @@ import {
   BadgePercent,
   BarChart3,
   Boxes,
+  Building2,
+  ChevronDown,
   CreditCard,
   FileText,
   LayoutGrid,
@@ -32,62 +34,88 @@ import { useAuth } from "@/hooks/use-auth";
 import { useOnline } from "@/hooks/use-online";
 import { useCashSession } from "@/hooks/use-cash-session";
 import { formatXAF } from "@/lib/format";
+import { canAccess, ROLE_LABELS, type Role } from "@/lib/rbac";
+import { usePointOfSale } from "@/hooks/use-point-of-sale";
+import { PosSelector } from "@/components/pos-selector";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutGrid };
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutGrid;
+  minRole?: Role;
+};
 
-const groups: { title: string; items: NavItem[] }[] = [
+const groups: { title: string; minRole?: Role; items: NavItem[] }[] = [
   {
     title: "Vente",
     items: [
-      { to: "/", label: "Tableau de bord", icon: LayoutGrid },
-      { to: "/pos", label: "Point de vente", icon: ShoppingCart },
-      { to: "/ventes", label: "Ventes", icon: Receipt },
-      { to: "/devis", label: "Devis", icon: FileText },
-      { to: "/factures", label: "Factures B2B", icon: FileText },
-      { to: "/caisse", label: "Caisse", icon: Wallet },
+      { to: "/",         label: "Tableau de bord", icon: LayoutGrid },
+      { to: "/pos",      label: "Point de vente",  icon: ShoppingCart },
+      { to: "/ventes",   label: "Ventes",          icon: Receipt },
+      { to: "/devis",    label: "Devis",           icon: FileText },
+      { to: "/factures", label: "Factures B2B",    icon: FileText,  minRole: "gerant" },
+      { to: "/caisse",   label: "Caisse",          icon: Wallet },
     ],
   },
   {
     title: "Stock",
     items: [
-      { to: "/catalogue", label: "Catalogue", icon: Package },
-      { to: "/stock", label: "Stock", icon: Boxes },
-      { to: "/fournisseurs", label: "Fournisseurs", icon: Truck },
-      { to: "/transferts", label: "Transferts", icon: Truck },
-      { to: "/promotions", label: "Promotions", icon: BadgePercent },
+      { to: "/catalogue",   label: "Catalogue",   icon: Package },
+      { to: "/stock",       label: "Stock",       icon: Boxes,       minRole: "gerant" },
+      { to: "/fournisseurs",label: "Fournisseurs",icon: Truck,       minRole: "gerant" },
+      { to: "/transferts",  label: "Transferts",  icon: Truck,       minRole: "gerant" },
+      { to: "/promotions",  label: "Promotions",  icon: BadgePercent,minRole: "gerant" },
     ],
   },
   {
     title: "Électronique",
     items: [
-      { to: "/electronique/imei", label: "IMEI / séries", icon: Smartphone },
-      { to: "/electronique/garanties", label: "Garanties", icon: ShieldCheck },
-      { to: "/electronique/sav", label: "SAV", icon: Wrench },
-      { to: "/electronique/echeanciers", label: "Échéanciers", icon: CreditCard },
+      { to: "/electronique/fiches",      label: "Fiches techniques", icon: Smartphone },
+      { to: "/electronique/imei",        label: "IMEI / séries",     icon: Smartphone },
+      { to: "/electronique/garanties",   label: "Garanties",         icon: ShieldCheck },
+      { to: "/electronique/sav",         label: "SAV",               icon: Wrench },
+      { to: "/electronique/echeanciers", label: "Échéanciers",       icon: CreditCard },
     ],
   },
   {
     title: "Pilotage",
     items: [
-      { to: "/clients", label: "Clients", icon: Users },
-      { to: "/rapports", label: "Rapports", icon: BarChart3 },
-      { to: "/parametres", label: "Paramètres", icon: Settings },
+      { to: "/clients",    label: "Clients",     icon: Users },
+      { to: "/rapports",   label: "Rapports",    icon: BarChart3, minRole: "gerant" },
+      { to: "/parametres", label: "Paramètres",  icon: Settings,  minRole: "gerant" },
+    ],
+  },
+  {
+    title: "Administration",
+    minRole: "proprietaire",
+    items: [
+      { to: "/admin/utilisateurs", label: "Utilisateurs",  icon: Users,    minRole: "proprietaire" },
+      { to: "/admin/roles",        label: "Rôles",         icon: ShieldCheck, minRole: "proprietaire" },
+      { to: "/admin/facturation",  label: "Facturation",   icon: FileText, minRole: "proprietaire" },
     ],
   },
 ];
 
-const bottomTabs: NavItem[] = [
-  { to: "/", label: "Accueil", icon: LayoutGrid },
-  { to: "/pos", label: "POS", icon: ShoppingCart },
-  { to: "/stock", label: "Stock", icon: Boxes },
+const bottomTabsAll: NavItem[] = [
+  { to: "/",      label: "Accueil", icon: LayoutGrid },
+  { to: "/pos",   label: "POS",     icon: ShoppingCart },
+  { to: "/stock", label: "Stock",   icon: Boxes,  minRole: "gerant" },
 ];
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ role, onNavigate }: { role: Role | undefined; onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const visibleGroups = groups
+    .filter((g) => !g.minRole || canAccess(role, g.items[0]?.to ?? "/__noaccess"))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((item) => canAccess(role, item.to)),
+    }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <nav className="flex flex-col gap-6 px-3 py-4">
-      {groups.map((group) => (
+      {visibleGroups.map((group) => (
         <div key={group.title} className="flex flex-col gap-1">
           <p className="px-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             {group.title}
@@ -122,10 +150,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const online = useOnline();
   const { user, logout } = useAuth();
   const { session } = useCashSession();
+  const { pos, openSelector } = usePointOfSale();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const role = user?.role as Role | undefined;
+  const bottomTabs = bottomTabsAll.filter((t) => canAccess(role, t.to));
 
   return (
     <div className="min-h-screen w-full bg-background">
+      <PosSelector />
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar lg:flex">
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-5">
           <div className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-primary text-primary-foreground">
@@ -133,7 +166,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <span className="text-[17px] font-semibold tracking-tight">BSS POS</span>
         </div>
-        <NavLinks />
+        <NavLinks role={role} />
       </aside>
 
       {open ? (
@@ -157,7 +190,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <X className="size-5" aria-hidden />
               </Button>
             </div>
-            <NavLinks onNavigate={() => setOpen(false)} />
+            <NavLinks role={role} onNavigate={() => setOpen(false)} />
           </div>
         </div>
       ) : null}
@@ -174,10 +207,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu className="size-5" aria-hidden />
           </Button>
           <div className="hidden lg:block" />
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2 flex-wrap">
             {session ? (
               <Badge className="gap-1.5 border-transparent bg-success/15 text-[11px] font-semibold tracking-wider text-foreground uppercase">
-                Caisse ouverte · {session.cash_register} · {formatXAF(session.opening_float)}
+                Caisse ouverte · {session.cash_register} · {formatXAF(session.opening_balance)}
               </Badge>
             ) : (
               <Badge
@@ -187,6 +220,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                 Aucune session caisse
               </Badge>
             )}
+            <button
+              type="button"
+              onClick={openSelector}
+              className="flex items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors duration-150 hover:bg-accent cursor-pointer"
+              title="Changer de boutique"
+            >
+              <Building2 className="size-3.5 shrink-0 text-primary" aria-hidden />
+              <span className="max-w-[120px] truncate">
+                {pos?.name ?? "Boutique…"}
+              </span>
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <span
@@ -202,7 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="hidden text-right sm:block">
               <p className="text-[13px] leading-tight font-medium">{user?.name ?? "Utilisateur"}</p>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">
-                {user?.role ?? "vendeur"}
+                {role ? ROLE_LABELS[role] : "Vendeur"}
               </p>
             </div>
             <Button

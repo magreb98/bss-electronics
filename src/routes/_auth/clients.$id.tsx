@@ -1,13 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Receipt, ShoppingBag, Wallet } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Receipt, ShoppingBag, Wallet } from "lucide-react";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { demoCustomers, demoSales, demoWarranties } from "@/lib/demo";
+import { request } from "@/lib/api";
 import { formatDate, formatDateTime, formatXAF } from "@/lib/format";
 
 export const Route = createFileRoute("/_auth/clients/$id")({
@@ -25,31 +27,112 @@ export const Route = createFileRoute("/_auth/clients/$id")({
   component: CustomerDetailPage,
 });
 
+interface BackendCustomer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  outstanding_balance?: number | null;
+  total_spent?: number | null;
+  sales_count?: number | null;
+}
+
+interface BackendSaleItem {
+  id: string;
+  number: string;
+  total_including_tax: number;
+  created_at: string;
+  lines_count?: number | null;
+}
+
+interface BackendWarranty {
+  id: string;
+  serial_unit?: { serial_number: string } | null;
+  product?: { label: string } | null;
+  ends_at: string;
+  status: string;
+}
+
 function CustomerDetailPage() {
   const { id } = Route.useParams();
-  const customer = demoCustomers.find((c) => String(c.id) === id) ?? demoCustomers[0]!;
-  const sales = demoSales.filter((s) => s.customer === customer.name);
-  const average = sales.length
-    ? Math.trunc(sales.reduce((sum, s) => sum + s.total, 0) / sales.length)
-    : 0;
+
+  const { data: customer, isLoading } = useQuery({
+    queryKey: ["customer", id],
+    queryFn: () =>
+      request<{ data: BackendCustomer }>(`/commerce/customers/${id}`)
+        .then((r) => r.data)
+        .catch(() => null),
+    staleTime: 60_000,
+  });
+
+  const { data: sales = [], isLoading: loadingSales } = useQuery({
+    queryKey: ["customer-sales", id],
+    queryFn: () =>
+      request<{ data: BackendSaleItem[] }>(`/commerce/sales?customer_id=${id}&per_page=10`)
+        .then((r) => r.data)
+        .catch(() => [] as BackendSaleItem[]),
+    staleTime: 30_000,
+  });
+
+  const { data: warranties = [], isLoading: loadingWarranties } = useQuery({
+    queryKey: ["customer-warranties", id],
+    queryFn: () =>
+      request<{ data: BackendWarranty[] }>(`/electronics/warranties?customer_id=${id}`)
+        .then((r) => r.data)
+        .catch(() => [] as BackendWarranty[]),
+    staleTime: 60_000,
+  });
+
+  const totalSpent = customer?.total_spent ?? 0;
+  const salesCount = customer?.sales_count ?? 0;
+  const credit = customer?.outstanding_balance ?? 0;
+  const average = salesCount > 0 ? Math.trunc(totalSpent / salesCount) : 0;
+
+  if (isLoading) {
+    return (
+      <PageBody>
+        <Skeleton className="h-8 w-48 rounded" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-[124px] rounded-[16px]" />)}
+        </div>
+        <Skeleton className="h-48 rounded-[16px]" />
+      </PageBody>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <PageBody>
+        <Link to="/clients" className="inline-flex items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
+          <ArrowLeft className="size-3.5" aria-hidden />
+          Retour aux clients
+        </Link>
+        <p className="py-8 text-center text-muted-foreground">Client introuvable.</p>
+      </PageBody>
+    );
+  }
 
   return (
     <PageBody>
       <PageHeader
         title={customer.name}
-        description={customer.phone}
+        description={customer.phone ?? ""}
         action={
-          customer.credit > 0 ? (
+          credit > 0 ? (
             <Badge className="tabular border-transparent bg-success/15 px-3 py-1 text-[12px] font-semibold text-foreground">
-              Avoir {formatXAF(customer.credit)}
+              Avoir {formatXAF(credit)}
             </Badge>
           ) : null
         }
       />
 
+      <Link to="/clients" className="inline-flex items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
+        <ArrowLeft className="size-3.5" aria-hidden />
+        Retour aux clients
+      </Link>
+
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Total dépensé" value={formatXAF(customer.total_spent)} icon={Wallet} />
-        <KpiCard label="Achats" value={String(customer.sales_count)} icon={ShoppingBag} />
+        <KpiCard label="Total dépensé" value={formatXAF(totalSpent)} icon={Wallet} />
+        <KpiCard label="Achats" value={String(salesCount)} icon={ShoppingBag} />
         <KpiCard label="Panier moyen" value={formatXAF(average)} icon={Receipt} />
       </div>
 
@@ -73,13 +156,13 @@ function CustomerDetailPage() {
                 <dt className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                   Téléphone
                 </dt>
-                <dd className="mono mt-1 text-[15px]">{customer.phone}</dd>
+                <dd className="mono mt-1 text-[15px]">{customer.phone ?? "—"}</dd>
               </div>
               <div className="rounded-[12px] border border-border p-3">
                 <dt className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                   Avoir disponible
                 </dt>
-                <dd className="tabular mt-1 text-[15px]">{formatXAF(customer.credit)}</dd>
+                <dd className="tabular mt-1 text-[15px]">{formatXAF(credit)}</dd>
               </div>
             </dl>
           </TabsContent>
@@ -96,21 +179,28 @@ function CustomerDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="mono text-[12px]">{s.reference}</TableCell>
-                      <TableCell className="tabular">{formatDateTime(s.created_at)}</TableCell>
-                      <TableCell className="tabular text-right">{s.items}</TableCell>
-                      <TableCell className="tabular text-right">{formatXAF(s.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {sales.length === 0 ? (
+                  {loadingSales ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-muted-foreground">
+                      <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                        Chargement…
+                      </TableCell>
+                    </TableRow>
+                  ) : sales.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                         Aucun achat enregistré.
                       </TableCell>
                     </TableRow>
-                  ) : null}
+                  ) : (
+                    sales.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="mono text-[12px]">{s.number}</TableCell>
+                        <TableCell className="tabular">{formatDateTime(s.created_at)}</TableCell>
+                        <TableCell className="tabular text-right">{s.lines_count ?? "—"}</TableCell>
+                        <TableCell className="tabular text-right">{formatXAF(s.total_including_tax)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -127,15 +217,29 @@ function CustomerDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {demoWarranties
-                    .filter((w) => w.customer === customer.name)
-                    .map((w) => (
+                  {loadingWarranties ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                        Chargement…
+                      </TableCell>
+                    </TableRow>
+                  ) : warranties.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                        Aucune garantie enregistrée.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    warranties.map((w) => (
                       <TableRow key={w.id}>
-                        <TableCell className="mono text-[12px]">{w.imei}</TableCell>
-                        <TableCell>{w.product}</TableCell>
+                        <TableCell className="mono text-[12px]">
+                          {w.serial_unit?.serial_number ?? "—"}
+                        </TableCell>
+                        <TableCell>{w.product?.label ?? "—"}</TableCell>
                         <TableCell className="tabular text-right">{formatDate(w.ends_at)}</TableCell>
                       </TableRow>
-                    ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>

@@ -1,6 +1,6 @@
+import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 
-export const API_URL = (import.meta.env["VITE_API_URL"] as string | undefined) ?? "";
 export const TOKEN_KEY = "bss_pos_token";
 
 export class ApiError extends Error {
@@ -13,71 +13,80 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken() {
+export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string | null) {
+export function setToken(token: string | null): void {
   if (typeof window === "undefined") return;
   if (token) window.localStorage.setItem(TOKEN_KEY, token);
   else window.localStorage.removeItem(TOKEN_KEY);
 }
 
-type Options = {
+// VITE_API_URL vide → requêtes relatives → proxy Vite ajoute le Host tenant
+export const API_URL =
+  (import.meta.env["VITE_API_URL"] as string | undefined) ?? "";
+
+export const api = axios.create({
+  baseURL: API_URL,
+  headers: { Accept: "application/json" },
+});
+
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (err: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
+    const status = err.response?.status ?? 0;
+
+    if (status === 401) {
+      setToken(null);
+      if (typeof window !== "undefined") window.location.assign("/connexion");
+      return Promise.reject(new ApiError(401, "Session expirée"));
+    }
+
+    if (status === 422) {
+      const errors = err.response?.data?.errors;
+      return Promise.reject(new ApiError(422, "Validation échouée", errors));
+    }
+
+    if (status >= 500) {
+      toast.error("Erreur serveur.", { duration: 6000 });
+      return Promise.reject(new ApiError(status, "Erreur serveur"));
+    }
+
+    const message = err.response?.data?.message ?? err.message ?? "Requête échouée";
+    return Promise.reject(new ApiError(status, message));
+  },
+);
+
+type RequestOptions = {
   method?: string;
   body?: unknown;
-  params?: Record<string, string | number | undefined> | undefined;
+  params?: Record<string, string | number | undefined>;
 };
 
-/**
- * Appelle le backend BSS. En l'absence de backend joignable, `request`
- * rejette et les hooks de données basculent sur les données de démonstration.
- */
-export async function request<T>(path: string, options: Options = {}): Promise<T> {
-  if (!API_URL) throw new ApiError(0, "API non configurée");
-
-  const url = new URL(path, API_URL);
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const filteredParams: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(options.params ?? {})) {
-    if (v !== undefined && v !== "") url.searchParams.set(k, String(v));
+    if (v !== undefined && v !== "") filteredParams[k] = v;
   }
 
-  const token = getToken();
-  const res = await fetch(url.toString(), {
+  const res = await api.request<T>({
+    url: path,
     method: options.method ?? "GET",
-    headers: {
-      Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+    params: Object.keys(filteredParams).length ? filteredParams : undefined,
+    data: options.body,
   });
 
-  if (res.status === 401) {
-    setToken(null);
-    if (typeof window !== "undefined") window.location.assign("/connexion");
-    throw new ApiError(401, "Session expirée");
-  }
-
-  if (res.status === 422) {
-    const payload = (await res.json().catch(() => ({}))) as { errors?: Record<string, string[]> };
-    throw new ApiError(422, "Validation échouée", payload.errors);
-  }
-
-  if (res.status >= 500) {
-    toast.error("Erreur serveur.", { duration: 6000 });
-    throw new ApiError(res.status, "Erreur serveur");
-  }
-
-  if (!res.ok) {
-    const payload = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new ApiError(res.status, payload.message ?? "Requête échouée");
-  }
-
-  return (await res.json()) as T;
+  return res.data;
 }
 
-/** Récupère `path` et retombe sur les données de démo si le backend est absent. */
 export async function fetchOrDemo<T>(
   path: string,
   fallback: T,
@@ -86,6 +95,20 @@ export async function fetchOrDemo<T>(
   try {
     const payload = await request<{ data: T }>(path, params ? { params } : {});
     return payload.data;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function fetchOrDemoAdapted<TBackend, TFrontend>(
+  path: string,
+  fallback: TFrontend,
+  adapter: (raw: TBackend) => TFrontend,
+  params?: Record<string, string | number | undefined>,
+): Promise<TFrontend> {
+  try {
+    const payload = await request<{ data: TBackend }>(path, params ? { params } : {});
+    return adapter(payload.data);
   } catch {
     return fallback;
   }

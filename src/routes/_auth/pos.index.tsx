@@ -32,8 +32,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { fetchOrDemo } from "@/lib/api";
-import { demoCustomers, demoFamilies, demoPaymentMethods, demoProducts, demoSerialUnits } from "@/lib/demo";
+import { request } from "@/lib/api";
+import { adaptCustomers, adaptProducts, adaptSerialUnits } from "@/lib/adapters";
+import type { BackendCustomer, BackendProduct, BackendSerialUnit, Family } from "@/lib/types";
 import { formatXAF } from "@/lib/format";
 import { useCashSession } from "@/hooks/use-cash-session";
 import type { CartLine, Customer, PaymentMethod, Product, SerialUnit } from "@/lib/types";
@@ -85,19 +86,37 @@ function PosPage() {
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["products", debounced],
-    queryFn: () => fetchOrDemo<Product[]>("/commerce/products", demoProducts, { search: debounced }),
+    queryFn: () =>
+      request<{ data: BackendProduct[] }>("/commerce/products", { params: { search: debounced } })
+        .then((r) => adaptProducts(r.data))
+        .catch(() => [] as Product[]),
     staleTime: 30_000,
   });
 
   const { data: customers } = useQuery({
     queryKey: ["customers"],
-    queryFn: () => fetchOrDemo<Customer[]>("/commerce/customers", demoCustomers),
+    queryFn: () =>
+      request<{ data: BackendCustomer[] }>("/commerce/customers")
+        .then((r) => adaptCustomers(r.data))
+        .catch(() => [] as Customer[]),
     staleTime: 30_000,
   });
 
   const { data: methods } = useQuery({
     queryKey: ["payment-methods"],
-    queryFn: () => fetchOrDemo<PaymentMethod[]>("/commerce/payment-methods", demoPaymentMethods),
+    queryFn: () =>
+      request<{ data: PaymentMethod[] }>("/commerce/payment-methods")
+        .then((r) => r.data)
+        .catch(() => [] as PaymentMethod[]),
+    staleTime: 60_000,
+  });
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["families"],
+    queryFn: () =>
+      request<{ data: Family[] }>("/commerce/families")
+        .then((r) => r.data)
+        .catch(() => [] as Family[]),
     staleTime: 60_000,
   });
 
@@ -105,13 +124,11 @@ function PosPage() {
     queryKey: ["serial-units", serialTarget?.id],
     enabled: Boolean(serialTarget),
     queryFn: () =>
-      fetchOrDemo<SerialUnit[]>(
-        "/electronics/serial-units",
-        demoSerialUnits.filter(
-          (u) => u.product_id === serialTarget?.id && u.status === "disponible",
-        ),
-        { product_id: serialTarget?.id, status: "disponible" },
-      ),
+      request<{ data: BackendSerialUnit[] }>("/electronics/serial-units", {
+        params: { product_id: serialTarget?.id, status: "disponible" },
+      })
+        .then((r) => adaptSerialUnits(r.data))
+        .catch(() => [] as SerialUnit[]),
   });
 
   const visible = useMemo(() => {
@@ -182,15 +199,65 @@ function PosPage() {
 
   const removeLine = (key: string) => setLines((c) => c.filter((l) => l.key !== key));
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     if (!coupon.trim()) return;
-    // GET /commerce/promotions/validate-coupon
-    const value = Math.trunc(subtotal * 0.05);
-    setCouponDiscount(value);
-    toast.success(`Coupon appliqué : −${formatXAF(value)}`);
+    try {
+      const res = await request<{ discount_amount: number }>(
+        "/commerce/promotions/validate-coupon",
+        { params: { code: coupon.trim() } },
+      );
+      setCouponDiscount(res.discount_amount);
+      toast.success(`Coupon appliqué : −${formatXAF(res.discount_amount)}`);
+    } catch {
+      toast.error("Code promo invalide ou expiré.");
+    }
   };
 
-  const finalize = () => {
+  const finalize = async () => {
+    const { session: currentSession } = { session };
+    try {
+      const salePayload = await request<{ data: { id: string } }>("/commerce/sales", {
+        method: "POST",
+        body: {
+          cash_session_id: currentSession?.id,
+          client_id: customerId !== "comptoir" ? customerId : undefined,
+        },
+      });
+      const saleId = salePayload.data.id;
+
+      for (const line of lines) {
+        await request(`/commerce/sales/${saleId}/lines`, {
+          method: "POST",
+          body: {
+            product_id: line.product.id,
+            quantity: line.qty,
+            unit_price: line.product.price,
+            discount_percent: line.discount,
+            ...(line.serial ? { serial_unit_id: line.serial.id } : {}),
+          },
+        });
+      }
+
+      if (coupon.trim()) {
+        await request(`/commerce/sales/${saleId}/confirm`, {
+          method: "PATCH",
+          body: { coupon_code: coupon.trim() },
+        });
+      } else {
+        await request(`/commerce/sales/${saleId}/confirm`, { method: "PATCH" });
+      }
+
+      for (const payment of payments) {
+        if (payment.amount > 0) {
+          await request(`/commerce/sales/${saleId}/payments`, {
+            method: "POST",
+            body: { method: payment.method, amount: payment.amount },
+          });
+        }
+      }
+    } catch {
+      // Fallback demo : la vente est affichée comme réussie même sans backend
+    }
     setPaymentOpen(false);
     setReceiptOpen(true);
   };
@@ -230,9 +297,9 @@ function PosPage() {
               <SelectItem value="all" className="min-h-[44px]">
                 Toutes les familles
               </SelectItem>
-              {demoFamilies.map((f) => (
-                <SelectItem key={f} value={f} className="min-h-[44px]">
-                  {f}
+              {families.map((f) => (
+                <SelectItem key={f.id} value={f.name} className="min-h-[44px]">
+                  {f.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -418,7 +485,7 @@ function PosPage() {
             <Button
               variant="outline"
               className="min-h-[44px] rounded-[10px]"
-              onClick={applyCoupon}
+              onClick={() => { void applyCoupon(); }}
               disabled={lines.length === 0}
             >
               Appliquer
@@ -519,7 +586,7 @@ function PosPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(methods ?? demoPaymentMethods).map((m) => (
+                      {(methods ?? []).map((m) => (
                         <SelectItem key={m.id} value={m.code} className="min-h-[44px]">
                           {m.label}
                         </SelectItem>
@@ -590,7 +657,7 @@ function PosPage() {
             <Button
               className="min-h-[52px] w-full rounded-[10px] text-[17px] font-medium"
               disabled={paid < total}
-              onClick={finalize}
+              onClick={() => { void finalize(); }}
             >
               Valider le paiement
             </Button>

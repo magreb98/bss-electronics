@@ -5,7 +5,7 @@ import type { User } from "@/lib/types";
 const USER_KEY = "bss_pos_user";
 
 const demoUser: User = {
-  id: 1,
+  id: "demo-1",
   name: "Alice Ekedi",
   phone: "+237 677 00 11 22",
   role: "proprietaire",

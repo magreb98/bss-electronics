@@ -1,18 +1,39 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Loader2, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { fetchOrDemo } from "@/lib/api";
-import { demoCustomers } from "@/lib/demo";
+import { request } from "@/lib/api";
+import { adaptCustomers } from "@/lib/adapters";
 import { formatXAF } from "@/lib/format";
-import type { Customer } from "@/lib/types";
+import type { BackendCustomer, Customer } from "@/lib/types";
 
 export const Route = createFileRoute("/_auth/clients/")({
   head: () => ({
@@ -29,9 +50,17 @@ export const Route = createFileRoute("/_auth/clients/")({
   component: CustomersPage,
 });
 
+const schema = z.object({
+  name: z.string().min(2, "Nom requis (2 caractères min.)"),
+  phone: z.string().min(8, "Numéro invalide"),
+  credit_limit: z.coerce.number().int().min(0),
+});
+
 function CustomersPage() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
@@ -40,7 +69,10 @@ function CustomersPage() {
 
   const { data } = useQuery({
     queryKey: ["customers", debounced],
-    queryFn: () => fetchOrDemo<Customer[]>("/commerce/customers", demoCustomers, { search: debounced }),
+    queryFn: () =>
+      request<{ data: BackendCustomer[] }>("/commerce/customers", { params: { search: debounced } })
+        .then((r) => adaptCustomers(r.data))
+        .catch(() => [] as Customer[]),
     staleTime: 30_000,
   });
 
@@ -51,16 +83,121 @@ function CustomersPage() {
       c.phone.includes(debounced),
   );
 
+  const form = useForm<z.infer<typeof schema>>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", phone: "", credit_limit: 0 },
+  });
+
+  const onSubmit = async (values: z.infer<typeof schema>) => {
+    try {
+      await request("/commerce/customers", {
+        method: "POST",
+        body: { name: values.name, phone: values.phone, credit_limit: values.credit_limit },
+      });
+      toast.success("Client créé avec succès");
+      void qc.invalidateQueries({ queryKey: ["customers"] });
+      form.reset();
+      setOpen(false);
+    } catch (err: unknown) {
+      const e = err as { errors?: Record<string, string[]>; message?: string };
+      if (e?.errors) {
+        Object.entries(e.errors).forEach(([field, msgs]) =>
+          form.setError(field as keyof z.infer<typeof schema>, { message: msgs[0] ?? "Invalide" }),
+        );
+      } else {
+        toast.error(e?.message ?? "Erreur lors de la création");
+      }
+    }
+  };
+
   return (
     <PageBody>
       <PageHeader
         title="Clients"
         description="Base clients de la boutique."
         action={
-          <Button className="min-h-[44px] rounded-[10px] px-5 font-medium">
-            <Plus className="size-4" aria-hidden />
-            Nouveau client
-          </Button>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset(); }}>
+            <DialogTrigger asChild>
+              <Button className="min-h-[44px] rounded-[10px] px-5 font-medium">
+                <Plus className="size-4" aria-hidden />
+                Nouveau client
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="rounded-[16px]">
+              <DialogHeader>
+                <DialogTitle>Nouveau client</DialogTitle>
+                <DialogDescription>
+                  Enregistrez un client pour suivre ses achats et son avoir.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nom complet</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ngono Marie" className="min-h-[44px] rounded-[10px]" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Téléphone</FormLabel>
+                        <FormControl>
+                          <Input
+                            inputMode="tel"
+                            placeholder="+237 6XX XXX XXX"
+                            className="mono min-h-[44px] rounded-[10px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="credit_limit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Plafond avoir (XAF)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="1"
+                            min="0"
+                            className="tabular min-h-[44px] rounded-[10px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      className="min-h-[44px] rounded-[10px] px-6"
+                      disabled={form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting && (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      )}
+                      Créer le client
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         }
       />
 
@@ -115,6 +252,13 @@ function CustomersPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  Aucun client trouvé.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Card>
