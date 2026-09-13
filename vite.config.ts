@@ -64,6 +64,11 @@ export default defineConfig({
         changeOrigin: true,
         headers: { Host: "iphonecameroun.com" },
       },
+      "/storage": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        headers: { Host: "iphonecameroun.com" },
+      },
     },
   },
 });

@@ -6,10 +6,12 @@ export const TOKEN_KEY = "bss_pos_token";
 export class ApiError extends Error {
   status: number;
   errors?: Record<string, string[]> | undefined;
-  constructor(status: number, message: string, errors?: Record<string, string[]>) {
+  code?: string | undefined;
+  constructor(status: number, message: string, errors?: Record<string, string[]>, code?: string) {
     super(message);
     this.status = status;
     this.errors = errors;
+    this.code = code;
   }
 }
 
@@ -41,7 +43,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (err: AxiosError<{ message?: string; errors?: Record<string, string[]> }>) => {
+  (err: AxiosError<{ message?: string; errors?: Record<string, string[]>; code?: string }>) => {
     const status = err.response?.status ?? 0;
 
     if (status === 401) {
@@ -52,7 +54,13 @@ api.interceptors.response.use(
 
     if (status === 422) {
       const errors = err.response?.data?.errors;
-      return Promise.reject(new ApiError(422, "Validation échouée", errors));
+      const code = err.response?.data?.code;
+      // Not every 422 is a field-validation failure (e.g. a wrong-current-password
+      // check returns {code, message} with no `errors` record) — keep the
+      // backend's own message and code so callers can distinguish the two.
+      return Promise.reject(
+        new ApiError(422, err.response?.data?.message ?? "Validation échouée", errors, code),
+      );
     }
 
     if (status >= 500) {

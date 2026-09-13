@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -26,13 +28,31 @@ export const Route = createFileRoute("/_auth/ventes/")({
   component: SalesPage,
 });
 
+interface SalesPageResponse {
+  data: BackendSale[];
+  meta: { current_page: number; last_page: number };
+}
+
 function SalesPage() {
-  const { data } = useQuery({
-    queryKey: ["sales"],
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<Sale[]>([]);
+  const [lastPage, setLastPage] = useState(1);
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["sales", page],
     queryFn: () =>
-      request<{ data: BackendSale[] }>("/commerce/sales").then((r) => adaptSales(r.data)).catch(() => [] as Sale[]),
+      request<SalesPageResponse>("/commerce/sales", { params: { page } })
+        .catch(() => ({ data: [], meta: { current_page: 1, last_page: 1 } }) as SalesPageResponse),
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (!data) return;
+    setRows((prev) => (page === 1 ? adaptSales(data.data) : [...prev, ...adaptSales(data.data)]));
+    setLastPage(data.meta.last_page);
+  }, [data, page]);
+
+  const hasMore = page < lastPage;
 
   return (
     <PageBody>
@@ -52,7 +72,7 @@ function SalesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(data ?? []).map((sale) => (
+            {rows.map((sale) => (
               <TableRow key={sale.id} className="cursor-pointer hover:bg-muted/40">
                 <TableCell className="mono text-[12px]">
                   <Link to="/ventes/$id" params={{ id: String(sale.id) }} className="hover:text-primary transition-colors">
@@ -79,15 +99,30 @@ function SalesPage() {
                 </TableCell>
               </TableRow>
             ))}
+            {rows.length === 0 && !isFetching && (
+              <TableRow>
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  Aucune vente trouvée.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Card>
 
-      <div className="flex justify-end">
-        <Button variant="outline" className="min-h-[44px] rounded-[10px]">
-          Charger plus
-        </Button>
-      </div>
+      {hasMore && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            className="min-h-[44px] rounded-[10px]"
+            disabled={isFetching}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            {isFetching && <Loader2 className="size-4 animate-spin" aria-hidden />}
+            Charger plus
+          </Button>
+        </div>
+      )}
     </PageBody>
   );
 }

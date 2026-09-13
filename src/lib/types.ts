@@ -12,6 +12,8 @@ export interface User {
   name: string;
   phone: string;
   role: "vendeur" | "gerant" | "proprietaire";
+  last_connected_at?: string | null;
+  must_change_password?: boolean;
 }
 
 export interface Family {
@@ -30,8 +32,18 @@ export interface Product {
   min_stock: number;  // toujours 0 depuis /commerce/products; réel depuis StockLevel
   has_serial: boolean; // backend: granularity === 'serial'
   image_url?: string;
+  images?: Array<{ id: string; url: string; position: number }>;
+  granularity?: "quantity" | "variant" | "serial" | "batch" | "service";
   vat_rate?: number;
   active?: boolean;
+}
+
+export interface BackendProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  reference: string;
+  active: boolean;
 }
 
 export interface SerialUnit {
@@ -74,7 +86,7 @@ export interface Sale {
 
 export interface PaymentMethod {
   id: string;
-  code: string;
+  key: string;
   label: string;
 }
 

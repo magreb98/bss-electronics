@@ -166,9 +166,9 @@ function InvoicesPage() {
     },
   });
 
-  const watchHt = form.watch("total_ht");
-  const autoVat = Math.round((watchHt || 0) * TVA);
-  const autoTtc = (watchHt || 0) + autoVat;
+  const watchHt = Number(form.watch("total_ht")) || 0;
+  const autoVat = Math.round(watchHt * TVA);
+  const autoTtc = watchHt + autoVat;
 
   const applyAutoCalc = () => {
     form.setValue("total_vat", autoVat);

@@ -24,6 +24,7 @@ export function PosSelector() {
     >
       <DialogContent
         className="max-w-lg rounded-[20px] p-0 overflow-hidden"
+        showCloseButton={canClose}
         onPointerDownOutside={(e) => { if (!canClose) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (!canClose) e.preventDefault(); }}
       >

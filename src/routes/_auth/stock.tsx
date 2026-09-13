@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Bell, Download, Loader2 } from "lucide-react";
+import { Bell, Download, Loader2, PackagePlus } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -66,10 +67,19 @@ const thresholdSchema = z.object({
   minimum_quantity: z.coerce.number().int().min(0, "Minimum 0"),
 });
 
+const adjustSchema = z.object({
+  product_id:       z.string().min(1, "Produit requis"),
+  point_of_sale_id: z.string().min(1, "PDV requis"),
+  quantity:         z.coerce.number().int("Entier requis").refine((v) => v !== 0, "La quantité ne peut pas être nulle"),
+});
+
 function StockPage() {
   const qc = useQueryClient();
   const [thresholdOpen, setThresholdOpen] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const { pos } = usePointOfSale();
+  const { user } = useAuth();
+  const canAdjustStock = user?.role === "gerant" || user?.role === "proprietaire";
   const posId = pos?.id;
 
   // Niveaux de stock réels depuis /commerce/stock
@@ -152,6 +162,34 @@ function StockPage() {
     }
   };
 
+  const adjustForm = useForm<z.infer<typeof adjustSchema>>({
+    resolver: zodResolver(adjustSchema),
+    defaultValues: { product_id: "", point_of_sale_id: posId ?? "", quantity: 1 },
+  });
+
+  const onSubmitAdjust = async (values: z.infer<typeof adjustSchema>) => {
+    try {
+      await request("/commerce/stock/movements", { method: "POST", body: values });
+      toast.success(values.quantity > 0 ? "Stock augmenté" : "Stock diminué");
+      void qc.invalidateQueries({ queryKey: ["stock"] });
+      void qc.invalidateQueries({ queryKey: ["stock-alerts"] });
+      void qc.invalidateQueries({ queryKey: ["stock-movements"] });
+      adjustForm.reset({ product_id: "", point_of_sale_id: posId ?? "", quantity: 1 });
+      setAdjustOpen(false);
+    } catch (err: unknown) {
+      const e = err as { errors?: Record<string, string[]>; message?: string };
+      if (e?.errors) {
+        Object.entries(e.errors).forEach(([f, msgs]) =>
+          adjustForm.setError(f as keyof z.infer<typeof adjustSchema>, {
+            message: msgs[0] ?? "Invalide",
+          }),
+        );
+      } else {
+        toast.error(e?.message ?? "Erreur lors de l'ajustement du stock");
+      }
+    }
+  };
+
   const exportCsv = (rows: StockLevel[], filename: string) => {
     const csv = [
       "produit;sku;pdv;stock;seuil",
@@ -175,6 +213,18 @@ function StockPage() {
         description={`${pos ? pos.name + " · " : ""}${stockLevels.length} ligne(s) · ${alerts.length} alerte(s)`}
         action={
           <div className="flex gap-2">
+            {canAdjustStock && (
+              <Button
+                className="min-h-[44px] rounded-[10px]"
+                onClick={() => {
+                  adjustForm.reset({ product_id: "", point_of_sale_id: posId ?? "", quantity: 1 });
+                  setAdjustOpen(true);
+                }}
+              >
+                <PackagePlus className="size-4" aria-hidden />
+                Ajuster le stock
+              </Button>
+            )}
             <Button
               variant="outline"
               className="min-h-[44px] rounded-[10px]"
@@ -357,6 +407,103 @@ function StockPage() {
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                   )}
                   Enregistrer le seuil
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog ajustement de stock */}
+      <Dialog
+        open={adjustOpen}
+        onOpenChange={(v) => { setAdjustOpen(v); if (!v) adjustForm.reset(); }}
+      >
+        <DialogContent className="rounded-[16px]">
+          <DialogHeader>
+            <DialogTitle>Ajuster le stock</DialogTitle>
+            <DialogDescription>
+              Saisissez une quantité positive pour ajouter du stock, négative pour en retirer.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...adjustForm}>
+            <form onSubmit={adjustForm.handleSubmit(onSubmitAdjust)} className="flex flex-col gap-4">
+              <FormField
+                control={adjustForm.control}
+                name="product_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Produit</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="min-h-[44px] rounded-[10px]">
+                          <SelectValue placeholder="Choisir un produit…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {productList.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={adjustForm.control}
+                name="point_of_sale_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Point de vente</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="min-h-[44px] rounded-[10px]">
+                          <SelectValue placeholder="Choisir un PDV…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {posList.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={adjustForm.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantité (+ pour ajouter, − pour retirer)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="1"
+                        className="tabular min-h-[44px] rounded-[10px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="submit"
+                  className="min-h-[44px] rounded-[10px] px-6"
+                  disabled={adjustForm.formState.isSubmitting}
+                >
+                  {adjustForm.formState.isSubmitting && (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  )}
+                  Valider l'ajustement
                 </Button>
               </DialogFooter>
             </form>

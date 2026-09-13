@@ -33,11 +33,12 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { request } from "@/lib/api";
-import { adaptCustomers, adaptProducts, adaptSerialUnits } from "@/lib/adapters";
-import type { BackendCustomer, BackendProduct, BackendSerialUnit, Family } from "@/lib/types";
+import { adaptCustomers, adaptProducts, adaptSerialUnits, adaptStockLevels } from "@/lib/adapters";
+import type { BackendCustomer, BackendProduct, BackendSerialUnit, BackendStockLevel, Family } from "@/lib/types";
 import { formatXAF } from "@/lib/format";
 import { useCashSession } from "@/hooks/use-cash-session";
-import type { CartLine, Customer, PaymentMethod, Product, SerialUnit } from "@/lib/types";
+import { usePointOfSale } from "@/hooks/use-point-of-sale";
+import type { CartLine, Customer, PaymentMethod, Product, SerialUnit, StockLevel } from "@/lib/types";
 
 export const Route = createFileRoute("/_auth/pos/")({
   head: () => ({
@@ -60,6 +61,8 @@ const TVA_RATE = 0.1925;
 function PosPage() {
   const navigate = useNavigate();
   const { session, ready } = useCashSession();
+  const { pos } = usePointOfSale();
+  const posId = pos?.id;
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -72,7 +75,7 @@ function PosPage() {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [serialTarget, setSerialTarget] = useState<Product | null>(null);
   const [payments, setPayments] = useState<{ method: string; amount: number }[]>([
-    { method: "especes", amount: 0 },
+    { method: "cash", amount: 0 },
   ]);
 
   useEffect(() => {
@@ -92,6 +95,27 @@ function PosPage() {
         .catch(() => [] as Product[]),
     staleTime: 30_000,
   });
+
+  // Stock réel de la boutique active — /commerce/products renvoie toujours
+  // stock=0 (placeholder), donc on le fusionne avec /commerce/stock pour que
+  // les pastilles reflètent l'inventaire réel du point de vente courant.
+  const { data: stockLevels = [] } = useQuery({
+    queryKey: ["stock", posId],
+    enabled: Boolean(posId),
+    queryFn: () =>
+      request<{ data: BackendStockLevel[] }>("/commerce/stock", { params: { point_of_sale_id: posId } })
+        .then((r) => adaptStockLevels(r.data))
+        .catch(() => [] as StockLevel[]),
+    staleTime: 30_000,
+  });
+
+  const stockByProduct = useMemo(() => {
+    const map = new Map<string, { quantity: number; minimum_quantity: number }>();
+    for (const level of stockLevels) {
+      map.set(level.product_id, { quantity: level.quantity, minimum_quantity: level.minimum_quantity });
+    }
+    return map;
+  }, [stockLevels]);
 
   const { data: customers } = useQuery({
     queryKey: ["customers"],
@@ -133,15 +157,20 @@ function PosPage() {
 
   const visible = useMemo(() => {
     const list = products ?? [];
-    return list.filter((p) => {
-      const matchesSearch =
-        !debounced ||
-        p.name.toLowerCase().includes(debounced.toLowerCase()) ||
-        p.sku.toLowerCase().includes(debounced.toLowerCase());
-      const matchesFamily = family === "all" || p.family === family;
-      return matchesSearch && matchesFamily;
-    });
-  }, [products, debounced, family]);
+    return list
+      .filter((p) => {
+        const matchesSearch =
+          !debounced ||
+          p.name.toLowerCase().includes(debounced.toLowerCase()) ||
+          p.sku.toLowerCase().includes(debounced.toLowerCase());
+        const matchesFamily = family === "all" || p.family === family;
+        return matchesSearch && matchesFamily;
+      })
+      .map((p) => {
+        const level = stockByProduct.get(p.id);
+        return level ? { ...p, stock: level.quantity, min_stock: level.minimum_quantity } : p;
+      });
+  }, [products, debounced, family, stockByProduct]);
 
   const subtotal = lines.reduce(
     (sum, l) => sum + Math.trunc((l.product.price * l.qty * (100 - l.discount)) / 100),
@@ -214,17 +243,27 @@ function PosPage() {
   };
 
   const finalize = async () => {
-    const { session: currentSession } = { session };
+    let saleId: string;
     try {
       const salePayload = await request<{ data: { id: string } }>("/commerce/sales", {
         method: "POST",
         body: {
-          cash_session_id: currentSession?.id,
+          cash_session_id: session?.id,
           client_id: customerId !== "comptoir" ? customerId : undefined,
         },
       });
-      const saleId = salePayload.data.id;
+      saleId = salePayload.data.id;
+    } catch {
+      // Aucun backend joignable : mode démo, la vente reste locale à l'écran.
+      setPaymentOpen(false);
+      setReceiptOpen(true);
+      return;
+    }
 
+    // À partir d'ici la vente existe côté serveur : une erreur ne doit plus
+    // être masquée par le mode démo, sous peine d'afficher "vente enregistrée"
+    // alors que les lignes, la confirmation ou le paiement ont échoué.
+    try {
       for (const line of lines) {
         await request(`/commerce/sales/${saleId}/lines`, {
           method: "POST",
@@ -255,9 +294,12 @@ function PosPage() {
           });
         }
       }
-    } catch {
-      // Fallback demo : la vente est affichée comme réussie même sans backend
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      toast.error(e?.message ?? "La vente n'a pas pu être finalisée. Vérifiez la caisse avant de réessayer.");
+      return;
     }
+
     setPaymentOpen(false);
     setReceiptOpen(true);
   };
@@ -267,7 +309,7 @@ function PosPage() {
     setCoupon("");
     setCouponDiscount(0);
     setCustomerId("comptoir");
-    setPayments([{ method: "especes", amount: 0 }]);
+    setPayments([{ method: "cash", amount: 0 }]);
     setReceiptOpen(false);
   };
 
@@ -316,7 +358,7 @@ function PosPage() {
                   key={product.id}
                   type="button"
                   onClick={() => onProductClick(product)}
-                  className="flex min-h-[150px] cursor-pointer flex-col justify-between rounded-[16px] border border-border bg-card p-4 text-left transition-colors duration-150 hover:bg-accent focus-visible:outline-2"
+                  className="flex min-h-[150px] cursor-pointer flex-col justify-between overflow-hidden rounded-[16px] border border-border bg-card p-4 text-left transition-colors duration-150 hover:bg-accent focus-visible:outline-2"
                 >
                   <div className="min-w-0">
                     <p className="line-clamp-2 text-[15px] leading-snug font-medium">
@@ -324,13 +366,13 @@ function PosPage() {
                     </p>
                     <p className="mono mt-1 text-[12px] text-muted-foreground">{product.sku}</p>
                   </div>
-                  <div className="mt-3 flex items-end justify-between gap-2">
-                    <span className="tabular text-[15px] font-semibold">
+                  <div className="mt-3 flex min-w-0 items-end justify-between gap-2">
+                    <span className="tabular min-w-0 flex-1 truncate text-[15px] font-semibold">
                       {formatXAF(product.price)}
                     </span>
                     <Badge
                       className={cn(
-                        "border-transparent text-[11px] font-semibold",
+                        "shrink-0 whitespace-nowrap border-transparent text-[11px] font-semibold",
                         product.stock === 0
                           ? "bg-destructive/15 text-destructive"
                           : product.stock <= product.min_stock
@@ -519,7 +561,7 @@ function PosPage() {
             className="min-h-[52px] w-full rounded-[10px] text-[17px] font-medium"
             disabled={lines.length === 0}
             onClick={() => {
-              setPayments([{ method: "especes", amount: total }]);
+              setPayments([{ method: "cash", amount: total }]);
               setPaymentOpen(true);
             }}
           >
@@ -587,7 +629,7 @@ function PosPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {(methods ?? []).map((m) => (
-                        <SelectItem key={m.id} value={m.code} className="min-h-[44px]">
+                        <SelectItem key={m.id} value={m.key} className="min-h-[44px]">
                           {m.label}
                         </SelectItem>
                       ))}

@@ -17,6 +17,7 @@ import { Route as AuthDevisRouteImport } from './routes/_auth/devis'
 import { Route as AuthFacturesRouteImport } from './routes/_auth/factures'
 import { Route as AuthFournisseursRouteImport } from './routes/_auth/fournisseurs'
 import { Route as AuthParametresRouteImport } from './routes/_auth/parametres'
+import { Route as AuthProfilRouteImport } from './routes/_auth/profil'
 import { Route as AuthPromotionsRouteImport } from './routes/_auth/promotions'
 import { Route as AuthRapportsRouteImport } from './routes/_auth/rapports'
 import { Route as AuthStockRouteImport } from './routes/_auth/stock'
@@ -88,6 +89,11 @@ const AuthFournisseursRoute = AuthFournisseursRouteImport.update({
 const AuthParametresRoute = AuthParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthProfilRoute = AuthProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthPromotionsRoute = AuthPromotionsRouteImport.update({
@@ -272,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/factures': typeof AuthFacturesRouteWithChildren
   '/fournisseurs': typeof AuthFournisseursRouteWithChildren
   '/parametres': typeof AuthParametresRoute
+  '/profil': typeof AuthProfilRoute
   '/promotions': typeof AuthPromotionsRoute
   '/rapports': typeof AuthRapportsRoute
   '/stock': typeof AuthStockRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/caisse': typeof AuthCaisseRoute
   '/devis': typeof AuthDevisRoute
   '/parametres': typeof AuthParametresRoute
+  '/profil': typeof AuthProfilRoute
   '/promotions': typeof AuthPromotionsRoute
   '/rapports': typeof AuthRapportsRoute
   '/stock': typeof AuthStockRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/_auth/factures': typeof AuthFacturesRouteWithChildren
   '/_auth/fournisseurs': typeof AuthFournisseursRouteWithChildren
   '/_auth/parametres': typeof AuthParametresRoute
+  '/_auth/profil': typeof AuthProfilRoute
   '/_auth/promotions': typeof AuthPromotionsRoute
   '/_auth/rapports': typeof AuthRapportsRoute
   '/_auth/stock': typeof AuthStockRoute
@@ -396,6 +405,7 @@ export interface FileRouteTypes {
     | '/factures'
     | '/fournisseurs'
     | '/parametres'
+    | '/profil'
     | '/promotions'
     | '/rapports'
     | '/stock'
@@ -435,6 +445,7 @@ export interface FileRouteTypes {
     | '/caisse'
     | '/devis'
     | '/parametres'
+    | '/profil'
     | '/promotions'
     | '/rapports'
     | '/stock'
@@ -474,6 +485,7 @@ export interface FileRouteTypes {
     | '/_auth/factures'
     | '/_auth/fournisseurs'
     | '/_auth/parametres'
+    | '/_auth/profil'
     | '/_auth/promotions'
     | '/_auth/rapports'
     | '/_auth/stock'
@@ -571,6 +583,13 @@ declare module '@tanstack/react-router' {
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof AuthParametresRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/profil': {
+      id: '/_auth/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof AuthProfilRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/promotions': {
@@ -902,6 +921,7 @@ interface AuthRouteChildren {
   AuthFacturesRoute: typeof AuthFacturesRouteWithChildren
   AuthFournisseursRoute: typeof AuthFournisseursRouteWithChildren
   AuthParametresRoute: typeof AuthParametresRoute
+  AuthProfilRoute: typeof AuthProfilRoute
   AuthPromotionsRoute: typeof AuthPromotionsRoute
   AuthRapportsRoute: typeof AuthRapportsRoute
   AuthStockRoute: typeof AuthStockRoute
@@ -931,6 +951,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthFacturesRoute: AuthFacturesRouteWithChildren,
   AuthFournisseursRoute: AuthFournisseursRouteWithChildren,
   AuthParametresRoute: AuthParametresRoute,
+  AuthProfilRoute: AuthProfilRoute,
   AuthPromotionsRoute: AuthPromotionsRoute,
   AuthRapportsRoute: AuthRapportsRoute,
   AuthStockRoute: AuthStockRoute,

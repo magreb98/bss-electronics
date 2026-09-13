@@ -57,7 +57,8 @@ function DashboardPage() {
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ["dashboard-today", today],
     queryFn: () =>
-      request<BackendDashboard>(`/commerce/dashboard?from=${today}&to=${today}`)
+      request<{ data: BackendDashboard }>(`/commerce/dashboard?from=${today}&to=${today}`)
+        .then((r) => r.data)
         .catch(() => null),
     staleTime: 30_000,
   });

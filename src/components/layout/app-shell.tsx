@@ -1,6 +1,6 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BadgePercent,
   BarChart3,
@@ -19,6 +19,7 @@ import {
   ShoppingCart,
   Smartphone,
   Truck,
+  UserCircle,
   Users,
   Wallet,
   Wifi,
@@ -86,6 +87,12 @@ const groups: { title: string; minRole?: Role; items: NavItem[] }[] = [
     ],
   },
   {
+    title: "Compte",
+    items: [
+      { to: "/profil", label: "Mon profil", icon: UserCircle },
+    ],
+  },
+  {
     title: "Administration",
     minRole: "proprietaire",
     items: [
@@ -148,13 +155,33 @@ function NavLinks({ role, onNavigate }: { role: Role | undefined; onNavigate?: (
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const online = useOnline();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { session } = useCashSession();
   const { pos, openSelector } = usePointOfSale();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
 
   const role = user?.role as Role | undefined;
   const bottomTabs = bottomTabsAll.filter((t) => canAccess(role, t.to));
+
+  // The cached user (localStorage, set at login) never updates on its own —
+  // refresh it once so a stale must_change_password from an earlier session
+  // doesn't linger after the password was already changed elsewhere.
+  const refreshedOnce = useRef(false);
+  useEffect(() => {
+    if (refreshedOnce.current) return;
+    refreshedOnce.current = true;
+    void refreshUser();
+  }, [refreshUser]);
+
+  // A password never rotated off its initial value blocks every other
+  // endpoint on the API — send the member straight to the page that can
+  // fix it instead of letting them hit a wall of failed requests.
+  useEffect(() => {
+    if (user?.must_change_password && pathname !== "/profil") {
+      void navigate({ to: "/profil" });
+    }
+  }, [user?.must_change_password, pathname, navigate]);
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -244,12 +271,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <WifiOff className="size-[18px] text-warning" aria-label="Hors-ligne" />
               )}
             </span>
-            <div className="hidden text-right sm:block">
+            <Link
+              to="/profil"
+              className="hidden rounded-[8px] px-1.5 py-1 text-right transition-colors duration-150 hover:bg-muted sm:block"
+            >
               <p className="text-[13px] leading-tight font-medium">{user?.name ?? "Utilisateur"}</p>
               <p className="text-[11px] tracking-wider text-muted-foreground uppercase">
                 {role ? ROLE_LABELS[role] : "Vendeur"}
               </p>
-            </div>
+            </Link>
             <Button
               variant="ghost"
               size="icon"

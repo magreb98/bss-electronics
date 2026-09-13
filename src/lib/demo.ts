@@ -74,10 +74,10 @@ export const demoDashboard: DashboardData = {
 };
 
 export const demoPaymentMethods: PaymentMethod[] = [
-  { id: "1", code: "especes", label: "Espèces" },
-  { id: "2", code: "mobile_money", label: "Mobile Money" },
-  { id: "3", code: "carte", label: "Carte bancaire" },
-  { id: "4", code: "avoir", label: "Avoir client" },
+  { id: "1", key: "cash", label: "Espèces" },
+  { id: "2", key: "mobile_money", label: "Mobile Money" },
+  { id: "3", key: "carte", label: "Carte bancaire" },
+  { id: "4", key: "avoir", label: "Avoir client" },
 ];
 
 export const demoSerialUnits: SerialUnit[] = [

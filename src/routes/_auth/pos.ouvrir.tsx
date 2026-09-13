@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { request } from "@/lib/api";
 import { useCashSession } from "@/hooks/use-cash-session";
+import { usePointOfSale } from "@/hooks/use-point-of-sale";
 import type { CashRegister } from "@/lib/types";
 
 export const Route = createFileRoute("/_auth/pos/ouvrir")({
@@ -53,13 +54,17 @@ const schema = z.object({
 function OpenSessionPage() {
   const navigate = useNavigate();
   const { open } = useCashSession();
+  const { pos } = usePointOfSale();
 
   const { data: registers, isLoading } = useQuery({
-    queryKey: ["cash-registers"],
+    queryKey: ["cash-registers", pos?.id],
     queryFn: () =>
-      request<{ data: CashRegister[] }>("/commerce/cash-registers")
+      request<{ data: CashRegister[] }>("/commerce/cash-registers", {
+        params: { point_of_sale_id: pos?.id },
+      })
         .then((r) => r.data)
         .catch(() => [] as CashRegister[]),
+    enabled: Boolean(pos),
     staleTime: 60_000,
   });
 
@@ -69,7 +74,13 @@ function OpenSessionPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof schema>) => {
-    await open(values);
+    try {
+      await open(values);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      toast.error(e?.message ?? "Impossible d'ouvrir la session de caisse.");
+      return;
+    }
     toast.success("Session caisse ouverte");
     await navigate({ to: "/pos" });
   };
@@ -102,7 +113,6 @@ function OpenSessionPage() {
                         {(registers ?? []).map((r) => (
                           <SelectItem key={r.id} value={r.id} className="min-h-[44px]">
                             {r.name}
-                            {r.point_of_sale ? ` — ${r.point_of_sale}` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>

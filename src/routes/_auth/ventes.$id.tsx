@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Loader2, Printer, RotateCcw, Undo2 } from "lucide-react";
 import { toast } from "sonner";
-import { request } from "@/lib/api";
+import { api, request } from "@/lib/api";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +77,7 @@ function SaleDetailPage() {
   const qc = useQueryClient();
   const [cancelling, setCancelling] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const { data: sale, isLoading } = useQuery({
     queryKey: ["sale", id],
@@ -89,6 +90,20 @@ function SaleDetailPage() {
     resolver: zodResolver(returnSchema),
     defaultValues: { reason: "" },
   });
+
+  const printReceipt = async () => {
+    setPrinting(true);
+    try {
+      const resp = await api.get(`/commerce/sales/${id}/receipt.pdf`, { responseType: "blob" });
+      const url = URL.createObjectURL(resp.data as Blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      toast.error("Impossible de générer le reçu.");
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const cancelSale = async () => {
     setCancelling(true);
@@ -156,35 +171,40 @@ function SaleDetailPage() {
             <Button
               variant="outline"
               className="min-h-[44px] rounded-[10px]"
-              onClick={() => window.open(`/commerce/sales/${id}/receipt.pdf`, "_blank")}
+              disabled={printing}
+              onClick={() => void printReceipt()}
             >
-              <Printer className="size-4" aria-hidden />
+              {printing ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Printer className="size-4" aria-hidden />
+              )}
               Imprimer
             </Button>
             {sale.state === "confirmed" && (
-              <>
-                <Button
-                  variant="outline"
-                  className="min-h-[44px] rounded-[10px]"
-                  onClick={() => { returnForm.reset(); setReturnOpen(true); }}
-                >
-                  <Undo2 className="size-4" aria-hidden />
-                  Retour
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-[44px] rounded-[10px] border-destructive text-destructive hover:bg-destructive/10"
-                  disabled={cancelling}
-                  onClick={() => void cancelSale()}
-                >
-                  {cancelling ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <RotateCcw className="size-4" aria-hidden />
-                  )}
-                  Annuler
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-[10px]"
+                onClick={() => { returnForm.reset(); setReturnOpen(true); }}
+              >
+                <Undo2 className="size-4" aria-hidden />
+                Retour
+              </Button>
+            )}
+            {sale.state === "draft" && (
+              <Button
+                variant="outline"
+                className="min-h-[44px] rounded-[10px] border-destructive text-destructive hover:bg-destructive/10"
+                disabled={cancelling}
+                onClick={() => void cancelSale()}
+              >
+                {cancelling ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <RotateCcw className="size-4" aria-hidden />
+                )}
+                Annuler
+              </Button>
             )}
           </div>
         }

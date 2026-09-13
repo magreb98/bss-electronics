@@ -50,8 +50,11 @@ function LoginPage() {
   const onSubmit = async (values: z.infer<typeof schema>) => {
     setError(null);
     try {
-      await login(values.phone, values.password);
-      await navigate({ to: "/" });
+      const user = await login(values.phone, values.password);
+      // A password never rotated off its initial value blocks every other
+      // endpoint on the API — send the member straight to the page that can
+      // fix it instead of letting them hit a wall of failed requests.
+      await navigate({ to: user.must_change_password ? "/profil" : "/" });
     } catch {
       setError("Téléphone ou mot de passe incorrect.");
     }

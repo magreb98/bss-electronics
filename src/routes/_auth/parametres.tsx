@@ -587,13 +587,13 @@ function PosManagementTab() {
 
 interface BackendPaymentMethod {
   id: string;
-  code: string;
+  key: string;
   label: string;
   active: boolean;
 }
 
 const pmSchema = z.object({
-  code:  z.string().min(1, "Code requis"),
+  key:   z.string().min(1, "Code requis"),
   label: z.string().min(2, "Libellé requis"),
 });
 
@@ -612,7 +612,7 @@ function PaymentMethodsTab() {
 
   const form = useForm<z.infer<typeof pmSchema>>({
     resolver: zodResolver(pmSchema),
-    defaultValues: { code: "", label: "" },
+    defaultValues: { key: "", label: "" },
   });
 
   const onSubmit = async (values: z.infer<typeof pmSchema>) => {
@@ -667,7 +667,7 @@ function PaymentMethodsTab() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
                 <FormField
                   control={form.control}
-                  name="code"
+                  name="key"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Code interne</FormLabel>
@@ -716,7 +716,7 @@ function PaymentMethodsTab() {
                   <CreditCard className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <div className="min-w-0">
                     <p className="font-medium">{pm.label}</p>
-                    <p className="mono text-[12px] text-muted-foreground">{pm.code}</p>
+                    <p className="mono text-[12px] text-muted-foreground">{pm.key}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

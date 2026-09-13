@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImagePlus, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { request } from "@/lib/api";
 import { adaptProduct } from "@/lib/adapters";
-import type { BackendProduct, BackendSerialUnit } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
+import type { BackendProduct, BackendProductVariant, BackendSerialUnit } from "@/lib/types";
 
 import { PageBody, PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -50,15 +51,26 @@ const schema = z.object({
   vat_rate:      z.coerce.number().min(0).max(100),
 });
 
+const variantSchema = z.object({
+  label: z.string().min(2, "Nom requis"),
+  reference: z.string().min(1, "Référence requise"),
+});
+
 function ProductDetailPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const canManageCatalog = user?.role === "gerant" || user?.role === "proprietaire";
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
 
   const { data: product } = useQuery({
     queryKey: ["product", id],
     queryFn: () =>
-      request<BackendProduct>(`/commerce/products/${id}`)
-        .then((r) => adaptProduct(r)),
+      request<{ data: BackendProduct }>(`/commerce/products/${id}`)
+        .then((r) => adaptProduct(r.data)),
     staleTime: 60_000,
   });
 
@@ -71,6 +83,77 @@ function ProductDetailPage() {
         .catch(() => [] as BackendSerialUnit[]),
     staleTime: 60_000,
   });
+
+  const { data: variants = [] } = useQuery({
+    queryKey: ["product-variants", id],
+    enabled: Boolean(product?.id),
+    queryFn: () =>
+      request<{ data: BackendProductVariant[] }>(`/commerce/products/${id}/variants`)
+        .then((r) => r.data)
+        .catch(() => [] as BackendProductVariant[]),
+    staleTime: 60_000,
+  });
+
+  const variantForm = useForm<z.infer<typeof variantSchema>>({
+    resolver: zodResolver(variantSchema),
+    defaultValues: { label: "", reference: "" },
+  });
+
+  const onCreateVariant = async (values: z.infer<typeof variantSchema>) => {
+    try {
+      await request(`/commerce/products/${id}/variants`, { method: "POST", body: values });
+      toast.success("Variante créée");
+      void qc.invalidateQueries({ queryKey: ["product-variants", id] });
+      variantForm.reset();
+    } catch (err: unknown) {
+      const e = err as { errors?: Record<string, string[]>; message?: string };
+      if (e?.errors) {
+        Object.entries(e.errors).forEach(([f, msgs]) =>
+          variantForm.setError(f as keyof z.infer<typeof variantSchema>, { message: msgs[0] ?? "Invalide" }),
+        );
+      } else {
+        toast.error(e?.message ?? "Erreur lors de la création de la variante");
+      }
+    }
+  };
+
+  const onPickImage = () => fileInputRef.current?.click();
+
+  const onImageSelected = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append("image", file);
+      await request(`/commerce/products/${id}/images/upload`, { method: "POST", body });
+      toast.success("Image ajoutée");
+      void qc.invalidateQueries({ queryKey: ["product", id] });
+      void qc.invalidateQueries({ queryKey: ["catalogue"] });
+    } catch (err: unknown) {
+      const e2 = err as { errors?: Record<string, string[]>; message?: string };
+      toast.error(e2?.errors?.["image"]?.[0] ?? e2?.message ?? "Erreur lors de l'envoi de l'image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onDeleteImage = async (imageId: string) => {
+    setDeletingImageId(imageId);
+    try {
+      await request(`/commerce/products/${id}/images/${imageId}`, { method: "DELETE" });
+      toast.success("Image supprimée");
+      void qc.invalidateQueries({ queryKey: ["product", id] });
+      void qc.invalidateQueries({ queryKey: ["catalogue"] });
+    } catch (err: unknown) {
+      const e2 = err as { message?: string };
+      toast.error(e2?.message ?? "Erreur lors de la suppression");
+    } finally {
+      setDeletingImageId(null);
+    }
+  };
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -148,22 +231,50 @@ function ProductDetailPage() {
         <Card className="gap-0 rounded-[16px] border-border p-5 shadow-none">
           <h2 className="text-[17px] font-semibold">Images</h2>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="aspect-square rounded-[12px] object-cover"
-              />
-            ) : (
+            {(product.images ?? []).map((img) => (
+              <div key={img.id} className="group relative aspect-square overflow-hidden rounded-[12px]">
+                <img src={img.url} alt={product.name} className="size-full object-cover" />
+                <button
+                  type="button"
+                  aria-label="Supprimer l'image"
+                  disabled={deletingImageId === img.id}
+                  onClick={() => void onDeleteImage(img.id)}
+                  className="absolute right-1.5 top-1.5 grid size-7 cursor-pointer place-items-center rounded-full bg-black/60 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 disabled:opacity-100"
+                >
+                  {deletingImageId === img.id ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <X className="size-3.5" aria-hidden />
+                  )}
+                </button>
+              </div>
+            ))}
+            {(product.images ?? []).length === 0 && (
               <div className="grid aspect-square place-items-center rounded-[12px] bg-muted text-muted-foreground">
                 <ImagePlus className="size-6" aria-hidden />
               </div>
             )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              onChange={(e) => void onImageSelected(e)}
+            />
             <button
               type="button"
-              className="grid aspect-square cursor-pointer place-items-center rounded-[12px] border border-dashed border-input text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-accent"
+              disabled={uploading}
+              onClick={onPickImage}
+              className="grid aspect-square cursor-pointer place-items-center gap-1 rounded-[12px] border border-dashed border-input text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Déposer une image
+              {uploading ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <>
+                  <Plus className="size-4" aria-hidden />
+                  Déposer une image
+                </>
+              )}
             </button>
           </div>
         </Card>
@@ -266,10 +377,88 @@ function ProductDetailPage() {
               </Form>
             </TabsContent>
 
-            <TabsContent value="variantes" className="pt-4">
-              <p className="text-[15px] text-muted-foreground">
-                Aucune variante enregistrée pour ce produit.
-              </p>
+            <TabsContent value="variantes" className="flex flex-col gap-4 pt-4">
+              {canManageCatalog && (
+                <Form {...variantForm}>
+                  <form
+                    onSubmit={variantForm.handleSubmit(onCreateVariant)}
+                    className="flex flex-wrap items-start gap-2"
+                  >
+                    <FormField
+                      control={variantForm.control}
+                      name="label"
+                      render={({ field }) => (
+                        <FormItem className="min-w-[160px] flex-1">
+                          <FormControl>
+                            <Input placeholder="Nom de la variante" className="min-h-[40px] rounded-[10px]" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={variantForm.control}
+                      name="reference"
+                      render={({ field }) => (
+                        <FormItem className="min-w-[140px] flex-1">
+                          <FormControl>
+                            <Input placeholder="Référence" className="mono min-h-[40px] rounded-[10px]" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="min-h-[40px] shrink-0 rounded-[10px] px-4"
+                      disabled={variantForm.formState.isSubmitting}
+                    >
+                      {variantForm.formState.isSubmitting ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Plus className="size-4" aria-hidden />
+                      )}
+                      Ajouter
+                    </Button>
+                  </form>
+                </Form>
+              )}
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Variante</TableHead>
+                    <TableHead>Référence</TableHead>
+                    <TableHead className="text-right">Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {variants.map((v) => (
+                    <TableRow key={v.id}>
+                      <TableCell className="font-medium">{v.label}</TableCell>
+                      <TableCell className="mono text-[12px] text-muted-foreground">{v.reference}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge
+                          className={
+                            v.active
+                              ? "border-transparent bg-success/15 text-[11px] font-semibold text-foreground"
+                              : "border-transparent bg-muted text-[11px] font-semibold text-muted-foreground"
+                          }
+                        >
+                          {v.active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {variants.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="py-6 text-center text-muted-foreground">
+                        Aucune variante enregistrée pour ce produit.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </TabsContent>
 
             <TabsContent value="lots" className="pt-4">

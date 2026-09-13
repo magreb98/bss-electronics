@@ -47,7 +47,7 @@ export function useOffline() {
 
 export function useRegisterSW() {
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !import.meta.env.PROD) return;
     const wb = new Workbox("/sw.js");
     void wb.register();
   }, []);

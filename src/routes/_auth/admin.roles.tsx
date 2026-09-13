@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Check, Minus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -176,8 +176,8 @@ function RolesPage() {
           </TableHeader>
           <TableBody>
             {groups.map((group) => (
-              <>
-                <TableRow key={group} className="bg-muted/40 hover:bg-muted/40">
+              <Fragment key={group}>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableCell
                     colSpan={roles.length + 1}
                     className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
@@ -220,7 +220,7 @@ function RolesPage() {
                       })}
                     </TableRow>
                   ))}
-              </>
+              </Fragment>
             ))}
           </TableBody>
         </Table>

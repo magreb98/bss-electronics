@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { request } from "@/lib/api";
+import { request, ApiError } from "@/lib/api";
 import { adaptCashSession } from "@/lib/adapters";
 import type { BackendCashSession, CashSession } from "@/lib/types";
 
@@ -83,7 +83,16 @@ export function CashSessionProvider({ children }: { children: ReactNode }) {
         },
       });
       created = adaptCashSession(payload.data);
-    } catch {
+    } catch (err: unknown) {
+      // Le backend a répondu (ex : 409 session déjà ouverte sur cette caisse,
+      // 422 fond de caisse invalide) — ce n'est pas une simple indisponibilité
+      // réseau, il ne faut pas fabriquer une session locale qui masquerait
+      // l'erreur réelle et ferait croire à une ouverture réussie.
+      if (err instanceof ApiError && err.status !== 0) {
+        throw err;
+      }
+
+      // Aucun backend joignable : mode démo, session locale de secours.
       created = {
         id: String(Date.now()),
         cash_register_id: input.cash_register_id,

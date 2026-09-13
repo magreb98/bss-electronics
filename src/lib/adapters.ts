@@ -200,6 +200,8 @@ export function adaptProduct(raw: BackendProduct): Product {
     min_stock: 0,
     has_serial: raw.granularity === "serial",
     ...(raw.images?.[0]?.url ? { image_url: raw.images[0].url } : {}),
+    images: raw.images ?? [],
+    granularity: raw.granularity,
     vat_rate: Number(raw.vat_rate),
     active: raw.active,
   };

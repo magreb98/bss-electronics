@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Banknote,
   CheckCircle2,
+  Coins,
   CreditCard,
   Loader2,
   Plus,
@@ -74,6 +75,14 @@ interface Expense {
   label: string;
   amount: number;
   created_at: string;
+}
+
+interface ExpectedCash {
+  opening_balance: number;
+  cash_sales: number;
+  mobile_money_sales: number;
+  expenses: number;
+  expected_cash: number;
 }
 
 interface SessionHistory {
@@ -228,6 +237,21 @@ function CashPage() {
 
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
 
+  // Position de caisse en direct — inclut les ventes espèces de la session,
+  // contrairement au calcul local (ouverture − dépenses) qui les ignorait.
+  const { data: expected } = useQuery({
+    queryKey: ["cash-session-expected", session?.id],
+    queryFn: () =>
+      request<{ data: ExpectedCash }>(`/commerce/cash-sessions/${session?.id}/expected-cash`)
+        .then((r) => r.data),
+    enabled: Boolean(session),
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+  });
+
+  const expectedCash = expected?.expected_cash ?? (session ? session.opening_balance - totalExpenses : 0);
+  const cashSales = expected?.cash_sales ?? 0;
+
   // ── Formulaire dépense ──────────────────────────────────────────────────────
 
   const expenseForm = useForm<z.infer<typeof expenseSchema>>({
@@ -261,7 +285,7 @@ function CashPage() {
 
   const closingForm = useForm<z.infer<typeof closingSchema>>({
     resolver: zodResolver(closingSchema),
-    defaultValues: { declared_cash: session?.opening_balance ?? 0 },
+    defaultValues: { declared_cash: expectedCash },
   });
 
   const onSubmitClosing = async (values: z.infer<typeof closingSchema>) => {
@@ -293,7 +317,7 @@ function CashPage() {
             <Button
               className="min-h-[44px] rounded-[10px] px-5"
               onClick={() => {
-                closingForm.reset({ declared_cash: session.opening_balance });
+                closingForm.reset({ declared_cash: expectedCash });
                 setClosingOpen(true);
               }}
             >
@@ -321,13 +345,13 @@ function CashPage() {
             </Card>
           ) : (
             <>
-              {/* KPIs — CORRECTION : libellé "Solde estimé" */}
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiCard label="Fond d'ouverture" value={formatXAF(session.opening_balance)} icon={Wallet} />
-                <KpiCard label="Dépenses"         value={formatXAF(totalExpenses)}           icon={Banknote} />
+                <KpiCard label="Ventes espèces"   value={formatXAF(cashSales)}                icon={Coins} />
+                <KpiCard label="Dépenses"         value={formatXAF(totalExpenses)}            icon={Banknote} />
                 <KpiCard
                   label="Solde estimé espèces"
-                  value={formatXAF(session.opening_balance - totalExpenses)}
+                  value={formatXAF(expectedCash)}
                   icon={CreditCard}
                 />
               </div>
@@ -518,14 +542,16 @@ function CashPage() {
               <span className="tabular font-medium">{formatXAF(session?.opening_balance ?? 0)}</span>
             </div>
             <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Ventes espèces</span>
+              <span className="tabular font-medium">{formatXAF(cashSales)}</span>
+            </div>
+            <div className="flex justify-between py-1">
               <span className="text-muted-foreground">Dépenses enregistrées</span>
               <span className="tabular font-medium text-destructive">−{formatXAF(totalExpenses)}</span>
             </div>
             <div className="flex justify-between border-t border-border pt-2 mt-1">
               <span className="font-semibold">Solde estimé espèces</span>
-              <span className="tabular font-bold">
-                {formatXAF((session?.opening_balance ?? 0) - totalExpenses)}
-              </span>
+              <span className="tabular font-bold">{formatXAF(expectedCash)}</span>
             </div>
           </div>
 
